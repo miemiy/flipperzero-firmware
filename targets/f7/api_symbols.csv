@@ -1772,7 +1772,7 @@ Function,+,furi_mutex_free,void,FuriMutex*
 Function,+,furi_mutex_get_owner,FuriThreadId,FuriMutex*
 Function,+,furi_mutex_release,FuriStatus,FuriMutex*
 Function,+,furi_pipe_alloc,FuriPipe,"size_t, size_t"
-Function,+,furi_pipe_alloc_ex,FuriPipe,"FuriPipeSideReceiveSettings, FuriPipeSideReceiveSettings"
+Function,+,furi_pipe_alloc_ex,FuriPipe,"FuriPipeDirectionSettings, FuriPipeDirectionSettings"
 Function,+,furi_pipe_bytes_available,size_t,FuriPipeSide*
 Function,+,furi_pipe_free,void,FuriPipeSide*
 Function,+,furi_pipe_install_as_stdio,void,FuriPipeSide*
@@ -1781,6 +1781,8 @@ Function,+,furi_pipe_role,FuriPipeRole,FuriPipeSide*
 Function,+,furi_pipe_send,size_t,"FuriPipeSide*, const void*, size_t, FuriWait"
 Function,+,furi_pipe_spaces_available,size_t,FuriPipeSide*
 Function,+,furi_pipe_state,FuriPipeState,FuriPipeSide*
+Function,+,furi_pipe_unweld,void,FuriPipeSide*
+Function,+,furi_pipe_weld,void,"FuriPipeSide*, FuriPipeSide*"
 Function,+,furi_pubsub_alloc,FuriPubSub*,
 Function,+,furi_pubsub_free,void,FuriPubSub*
 Function,+,furi_pubsub_publish,void,"FuriPubSub*, void*"
