@@ -270,17 +270,14 @@ bool ble_svc_hid_update_input_report(
     furi_assert(data);
     furi_assert(hid_svc);
     furi_assert(input_report_num < BLE_SVC_HID_INPUT_REPORT_COUNT);
-    bool ret = false;
 
     HidSvcDataWrapper report_data = {
         .data_ptr = data,
         .data_len = len,
     };
 
-    ret = ble_gatt_characteristic_update(
+    return ble_gatt_characteristic_update(
         hid_svc->svc_handle, &hid_svc->input_report_chars[input_report_num], &report_data);
-
-    return ret;
 }
 
 bool ble_svc_hid_update_info(BleServiceHid* hid_svc, uint8_t* data) {
