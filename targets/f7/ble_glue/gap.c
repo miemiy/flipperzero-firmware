@@ -604,6 +604,8 @@ void gap_thread_stop(void) {
         gap->command_queue = NULL;
         furi_timer_free(gap->advertise_timer);
         gap->advertise_timer = NULL;
+        furi_semaphore_free(gap->tx_pool_busy);
+        gap->tx_pool_busy = NULL;
 
         ble_event_dispatcher_reset();
         free(gap);
