@@ -1,4 +1,5 @@
 #include "gatt.h"
+#include "gap.h"
 #include <ble/ble.h>
 
 #include <furi.h>
@@ -119,15 +120,21 @@ bool ble_gatt_characteristic_update(
     if(result) {
         if(result == BLE_STATUS_INSUFFICIENT_RESOURCES) {
             FURI_LOG_E(TAG, "Insufficient resources for %s characteristic", char_descriptor->name);
-        } else {
-            FURI_LOG_E(
-                TAG, "Failed updating %s characteristic: %d", char_descriptor->name, result);
-            furi_assert(false, "Failed to update characteristic");
+            gap_wait_for_tx_pool_acailable(FuriWaitForever);
+            result = aci_gatt_update_char_value(
+                svc_handle, char_instance->handle, 0, char_data_size, char_data);
         }
     }
+
     if(release_data) {
         free((void*)char_data);
     }
+
+    if(result != BLE_STATUS_SUCCESS) {
+        FURI_LOG_E(TAG, "Failed updating %s characteristic: %d", char_descriptor->name, result);
+        furi_assert(false, "Failed to update characteristic");
+    }
+
     return result != BLE_STATUS_SUCCESS;
 }
 

@@ -2,6 +2,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <furi/core/base.h>
 
 #include <furi_hal_version.h>
 
@@ -88,6 +89,8 @@ GapState gap_get_state(void);
 void gap_thread_stop(void);
 
 void gap_emit_ble_beacon_status_event(bool active);
+
+void gap_wait_for_tx_pool_acailable(FuriWait wait);
 
 #ifdef __cplusplus
 }
