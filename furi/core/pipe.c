@@ -1,6 +1,5 @@
 #include "pipe.h"
 #include "stream_buffer.h"
-#include "semaphore.h"
 #include "mutex.h"
 #include "check.h"
 #include "memmgr.h"
@@ -20,6 +19,7 @@ typedef struct {
 } FuriPipeChain;
 
 struct FuriPipeSide {
+    FuriMutex* mutex;
     FuriPipeRole role;
     FuriPipeChain* chain;
     FuriStreamBuffer* sending;
@@ -32,10 +32,13 @@ FuriPipe furi_pipe_alloc(size_t capacity, size_t trigger_level) {
         .capacity = capacity,
         .trigger_level = trigger_level,
     };
-    return furi_pipe_alloc_ex(settings, settings);
+    return furi_pipe_alloc_ex(FuriPipeWeldingCapEnabled, settings, settings);
 }
 
-FuriPipe furi_pipe_alloc_ex(FuriPipeDirectionSettings to_alice, FuriPipeDirectionSettings to_bob) {
+FuriPipe furi_pipe_alloc_ex(
+    FuriPipeWeldingCap welding_cap,
+    FuriPipeDirectionSettings to_alice,
+    FuriPipeDirectionSettings to_bob) {
     FuriStreamBuffer* alice_to_bob =
         furi_stream_buffer_alloc(to_bob.capacity, to_bob.trigger_level);
     FuriStreamBuffer* bob_to_alice =
@@ -54,6 +57,9 @@ FuriPipe furi_pipe_alloc_ex(FuriPipeDirectionSettings to_alice, FuriPipeDirectio
     PipeSideArray_push_back(chain->pipe_sides, bobs_side);
 
     *alices_side = (FuriPipeSide){
+        .mutex = (welding_cap == FuriPipeWeldingCapEnabled) ?
+                     furi_mutex_alloc(FuriMutexTypeRecursive) :
+                     NULL,
         .role = FuriPipeRoleAlice,
         .chain = chain,
         .sending = alice_to_bob,
@@ -61,6 +67,9 @@ FuriPipe furi_pipe_alloc_ex(FuriPipeDirectionSettings to_alice, FuriPipeDirectio
         .send_settings = to_bob,
     };
     *bobs_side = (FuriPipeSide){
+        .mutex = (welding_cap == FuriPipeWeldingCapEnabled) ?
+                     furi_mutex_alloc(FuriMutexTypeNormal) :
+                     NULL,
         .role = FuriPipeRoleBob,
         .chain = chain,
         .sending = bob_to_alice,
@@ -71,24 +80,34 @@ FuriPipe furi_pipe_alloc_ex(FuriPipeDirectionSettings to_alice, FuriPipeDirectio
     return (FuriPipe){.alices_side = alices_side, .bobs_side = bobs_side};
 }
 
+static FURI_ALWAYS_INLINE void furi_pipe_side_lock(FuriPipeSide* pipe) {
+    if(pipe->mutex) furi_mutex_acquire(pipe->mutex, FuriWaitForever);
+}
+
+static FURI_ALWAYS_INLINE void furi_pipe_side_unlock(FuriPipeSide* pipe) {
+    if(pipe->mutex) furi_mutex_release(pipe->mutex);
+}
+
 FuriPipeRole furi_pipe_role(FuriPipeSide* pipe) {
     furi_check(pipe);
-    return pipe->role;
+    furi_pipe_side_lock(pipe);
+    FuriPipeRole role = pipe->role;
+    furi_pipe_side_unlock(pipe);
+    return role;
 }
 
 FuriPipeState furi_pipe_state(FuriPipeSide* pipe) {
     furi_check(pipe);
-    FURI_CRITICAL_ENTER();
+    furi_pipe_side_lock(pipe);
     size_t sides = PipeSideArray_size(pipe->chain->pipe_sides);
-    FURI_CRITICAL_EXIT();
+    furi_pipe_side_unlock(pipe);
     return (sides % 2) ? FuriPipeStateBroken : FuriPipeStateOpen;
 }
 
 void furi_pipe_free(FuriPipeSide* pipe) {
     furi_check(pipe);
 
-    FURI_CRITICAL_ENTER();
-
+    furi_pipe_side_lock(pipe);
     furi_check(pipe->role != FuriPipeRoleJoint); // unweld first
 
     size_t sides = PipeSideArray_size(pipe->chain->pipe_sides);
@@ -99,6 +118,7 @@ void furi_pipe_free(FuriPipeSide* pipe) {
         furi_stream_buffer_free(pipe->sending);
         furi_stream_buffer_free(pipe->receiving);
         PipeSideArray_clear(pipe->chain->pipe_sides);
+        if(pipe->mutex) furi_mutex_free(pipe->mutex);
         free(pipe->chain);
         free(pipe);
     } else {
@@ -110,10 +130,9 @@ void furi_pipe_free(FuriPipeSide* pipe) {
         }
         furi_check(!PipeSideArray_end_p(it));
         PipeSideArray_remove(pipe->chain->pipe_sides, it);
+        if(pipe->mutex) furi_mutex_free(pipe->mutex);
         free(pipe);
     }
-
-    FURI_CRITICAL_EXIT();
 }
 
 static void _furi_pipe_stdout_cb(const char* data, size_t size, void* context) {
@@ -125,7 +144,7 @@ static void _furi_pipe_stdout_cb(const char* data, size_t size, void* context) {
 static size_t _furi_pipe_stdin_cb(char* data, size_t size, FuriWait timeout, void* context) {
     furi_assert(context);
     FuriPipeSide* pipe = context;
-    return furi_stream_buffer_receive(pipe->sending, data, size, timeout);
+    return furi_stream_buffer_receive(pipe->receiving, data, size, timeout);
 }
 
 void furi_pipe_install_as_stdio(FuriPipeSide* pipe) {
@@ -136,30 +155,42 @@ void furi_pipe_install_as_stdio(FuriPipeSide* pipe) {
 
 size_t furi_pipe_receive(FuriPipeSide* pipe, void* data, size_t length, FuriWait timeout) {
     furi_check(pipe);
+    furi_pipe_side_lock(pipe);
     FuriStreamBuffer* buffer = pipe->receiving;
-    if(!buffer) return 0;
-    return furi_stream_buffer_receive(buffer, data, length, timeout);
+    size_t received = 0;
+    if(buffer) received = furi_stream_buffer_receive(buffer, data, length, timeout);
+    furi_pipe_side_unlock(pipe);
+    return received;
 }
 
 size_t furi_pipe_send(FuriPipeSide* pipe, const void* data, size_t length, FuriWait timeout) {
     furi_check(pipe);
+    furi_pipe_side_lock(pipe);
     FuriStreamBuffer* buffer = pipe->sending;
-    if(!buffer) return 0;
-    return furi_stream_buffer_send(buffer, data, length, timeout);
+    size_t sent = 0;
+    if(buffer) sent = furi_stream_buffer_send(buffer, data, length, timeout);
+    furi_pipe_side_unlock(pipe);
+    return sent;
 }
 
 size_t furi_pipe_bytes_available(FuriPipeSide* pipe) {
     furi_check(pipe);
+    furi_pipe_side_lock(pipe);
     FuriStreamBuffer* buffer = pipe->receiving;
-    if(!buffer) return 0;
-    return furi_stream_buffer_bytes_available(buffer);
+    size_t available = 0;
+    if(buffer) available = furi_stream_buffer_bytes_available(buffer);
+    furi_pipe_side_unlock(pipe);
+    return available;
 }
 
 size_t furi_pipe_spaces_available(FuriPipeSide* pipe) {
     furi_check(pipe);
+    furi_pipe_side_lock(pipe);
     FuriStreamBuffer* buffer = pipe->sending;
-    if(!buffer) return 0;
-    return furi_stream_buffer_spaces_available(buffer);
+    size_t available = 0;
+    if(buffer) available = furi_stream_buffer_spaces_available(buffer);
+    furi_pipe_side_unlock(pipe);
+    return available;
 }
 
 void furi_pipe_weld(FuriPipeSide* side_1, FuriPipeSide* side_2) {
@@ -205,7 +236,12 @@ void furi_pipe_weld(FuriPipeSide* side_1, FuriPipeSide* side_2) {
     furi_check(side_1);
     furi_check(side_2);
 
-    FURI_CRITICAL_ENTER();
+    // both sides must be weldable
+    furi_check(side_1->mutex);
+    furi_check(side_2->mutex);
+
+    furi_pipe_side_lock(side_1);
+    furi_pipe_side_lock(side_2);
 
     // cannot weld an already welded side
     furi_check(side_1->role != FuriPipeRoleJoint);
@@ -222,6 +258,18 @@ void furi_pipe_weld(FuriPipeSide* side_1, FuriPipeSide* side_2) {
 
     FuriPipeChain* left_chain = intermediate_bob->chain;
     FuriPipeChain* right_chain = intermediate_alice->chain;
+
+    // lock all sides in both chains
+    for
+        M_EACH(side, left_chain->pipe_sides, PipeSideArray_t) {
+            // already locked Bob near the beginning
+            if(*side != intermediate_bob) furi_pipe_side_lock(*side);
+        }
+    for
+        M_EACH(side, right_chain->pipe_sides, PipeSideArray_t) {
+            // already locked Alice near the beginning
+            if(*side != intermediate_alice) furi_pipe_side_lock(*side);
+        }
 
     // copy residual data
     do {
@@ -269,7 +317,11 @@ void furi_pipe_weld(FuriPipeSide* side_1, FuriPipeSide* side_2) {
     chain_alice->sending = left_chain->alice_to_bob;
     chain_bob->sending = left_chain->bob_to_alice;
 
-    FURI_CRITICAL_EXIT();
+    // unlock all sides
+    for
+        M_EACH(side, left_chain->pipe_sides, PipeSideArray_t) {
+            furi_pipe_side_unlock(*side);
+        }
 }
 
 void furi_pipe_unweld(FuriPipeSide* side) {

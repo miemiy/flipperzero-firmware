@@ -66,6 +66,20 @@ typedef struct {
 } FuriPipeDirectionSettings;
 
 /**
+ * Controls whether the pipe should support welding or not. This decision should
+ * depend on your use case for the pipes:
+ *   - If you never want to weld pipes, use non-weldable pipes, as they will be
+ *     faster.
+ *   - If you want to copy data between pipes, use weldable pipes and weld them
+ *     together, as that is faster and more memory efficient than manually
+ *     copying data around.
+ */
+typedef enum {
+    FuriPipeWeldingCapEnabled,
+    FuriPipeWeldingCapDisabled,
+} FuriPipeWeldingCap;
+
+/**
  * @brief Allocates two connected sides of one pipe.
  * 
  * Creating a pair of sides using this function is the only way to connect two
@@ -73,8 +87,8 @@ typedef struct {
  * together.
  * 
  * The capacity and trigger level for both directions are the same when the pipe
- * is created using this function. Use `furi_pipe_alloc_ex` if you want more
- * control.
+ * is created using this function. Welding support is enabled, which might be
+ * undesirable. Use `furi_pipe_alloc_ex` if you want more control.
  */
 FuriPipe furi_pipe_alloc(size_t capacity, size_t trigger_level);
 
@@ -86,10 +100,14 @@ FuriPipe furi_pipe_alloc(size_t capacity, size_t trigger_level);
  * together.
  * 
  * The capacity and trigger level may be different for the two directions when
- * the pipe is created using this function. Use `furi_pipe_alloc` if you don't
- * need control this fine.
+ * the pipe is created using this function. You can enable or disable welding
+ * support, optimizing performance for your exact use case. Use
+ * `furi_pipe_alloc` if you don't need control this fine.
  */
-FuriPipe furi_pipe_alloc_ex(FuriPipeDirectionSettings to_alice, FuriPipeDirectionSettings to_bob);
+FuriPipe furi_pipe_alloc_ex(
+    FuriPipeWeldingCap welding_cap,
+    FuriPipeDirectionSettings to_alice,
+    FuriPipeDirectionSettings to_bob);
 
 /**
  * @brief Gets the role of a pipe side.

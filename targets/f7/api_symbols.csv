@@ -1772,7 +1772,7 @@ Function,+,furi_mutex_free,void,FuriMutex*
 Function,+,furi_mutex_get_owner,FuriThreadId,FuriMutex*
 Function,+,furi_mutex_release,FuriStatus,FuriMutex*
 Function,+,furi_pipe_alloc,FuriPipe,"size_t, size_t"
-Function,+,furi_pipe_alloc_ex,FuriPipe,"FuriPipeDirectionSettings, FuriPipeDirectionSettings"
+Function,+,furi_pipe_alloc_ex,FuriPipe,"FuriPipeWeldingCap, FuriPipeDirectionSettings, FuriPipeDirectionSettings"
 Function,+,furi_pipe_bytes_available,size_t,FuriPipeSide*
 Function,+,furi_pipe_free,void,FuriPipeSide*
 Function,+,furi_pipe_install_as_stdio,void,FuriPipeSide*

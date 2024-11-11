@@ -159,6 +159,7 @@ static void test_furi_pipe_welding(void) {
     mu_assert_int_eq(FuriPipeRoleAlice, furi_pipe_role(alice));
     mu_assert_int_eq(FuriPipeRoleBob, furi_pipe_role(bob));
 
+    // make sure that residual data is copied over
     uint8_t buf[sizeof(src_buf)];
     furi_pipe_receive(bob, buf, sizeof(buf), FuriWaitForever);
     mu_assert_mem_eq(src_buf, buf, sizeof(buf));
@@ -179,6 +180,7 @@ static void test_furi_pipe_welding(void) {
         }
     }
 
+    // make sure that new data reaches its destination
     for(uint8_t i = 0;; ++i) {
         mu_assert_int_eq(PIPE_SIZE - i, furi_pipe_bytes_available(bob));
 
