@@ -173,7 +173,7 @@ size_t furi_pipe_send(FuriPipeSide* pipe, const void* data, size_t length, FuriW
 /**
  * @brief Determines how many bytes there are in the pipe available to be read.
  * 
- * @param [in] Pipe side to query
+ * @param [in] pipe Pipe side to query
  * @returns Number of bytes available to be read out from that side of the pipe
  */
 size_t furi_pipe_bytes_available(FuriPipeSide* pipe);
@@ -182,7 +182,7 @@ size_t furi_pipe_bytes_available(FuriPipeSide* pipe);
  * @brief Determines how many space there is in the pipe for data to be written
  * into.
  * 
- * @param [in] Pipe side to query
+ * @param [in] pipe Pipe side to query
  * @returns Number of bytes available to be written into that side of the pipe
  */
 size_t furi_pipe_spaces_available(FuriPipeSide* pipe);
