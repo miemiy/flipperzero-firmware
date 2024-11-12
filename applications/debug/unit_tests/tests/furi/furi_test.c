@@ -43,7 +43,7 @@ MU_TEST(mu_test_furi_memmgr) {
 }
 
 MU_TEST(mu_test_furi_event_loop) {
-    // test_furi_event_loop();
+    test_furi_event_loop();
 }
 
 MU_TEST(mu_test_errno_saving) {

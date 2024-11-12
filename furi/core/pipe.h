@@ -19,17 +19,13 @@ extern "C" {
 /**
  * @brief The role of a pipe side
  * 
- * Alice and Bob are equal, as they can both read and write the data. This
- * status might be helpful in determining the role of a thread w.r.t. another
- * thread in an application that builds on the pipe.
- * 
- * Joints only allow the `unweld` operation. For more info, see
- * `furi_pipe_weld`.
+ * Both roles are equal, as they can both read and write the data. This status
+ * might be helpful in determining the role of a thread w.r.t. another thread in
+ * an application that builds on the pipe.
  */
 typedef enum {
     FuriPipeRoleAlice,
     FuriPipeRoleBob,
-    FuriPipeRoleJoint,
 } FuriPipeRole;
 
 /**
@@ -41,8 +37,6 @@ typedef enum {
  *   - `FuriPipeStateBroken`: The other side of the pipe has been freed, meaning
  *     data that is written will never reach its destination, and no new data
  *     will appear in the buffer.
- *   - `FuriPipeStateWelded`: The side of the pipe functions as a joint between
- *     two pipes. For more info, see `furi_pipe_weld`.
  * 
  * A broken pipe can never become open again, because there's no way to connect
  * a side of a pipe to another side of a pipe.
@@ -50,7 +44,6 @@ typedef enum {
 typedef enum {
     FuriPipeStateOpen,
     FuriPipeStateBroken,
-    FuriPipeStateWelded,
 } FuriPipeState;
 
 typedef struct FuriPipeSide FuriPipeSide;
@@ -63,21 +56,7 @@ typedef struct {
 typedef struct {
     size_t capacity;
     size_t trigger_level;
-} FuriPipeDirectionSettings;
-
-/**
- * Controls whether the pipe should support welding or not. This decision should
- * depend on your use case for the pipes:
- *   - If you never want to weld pipes, use non-weldable pipes, as they will be
- *     faster.
- *   - If you want to copy data between pipes, use weldable pipes and weld them
- *     together, as that is faster and more memory efficient than manually
- *     copying data around.
- */
-typedef enum {
-    FuriPipeWeldingCapEnabled,
-    FuriPipeWeldingCapDisabled,
-} FuriPipeWeldingCap;
+} FuriPipeSideReceiveSettings;
 
 /**
  * @brief Allocates two connected sides of one pipe.
@@ -87,8 +66,8 @@ typedef enum {
  * together.
  * 
  * The capacity and trigger level for both directions are the same when the pipe
- * is created using this function. Welding support is enabled, which might be
- * undesirable. Use `furi_pipe_alloc_ex` if you want more control.
+ * is created using this function. Use `furi_pipe_alloc_ex` if you want more
+ * control.
  */
 FuriPipe furi_pipe_alloc(size_t capacity, size_t trigger_level);
 
@@ -100,14 +79,10 @@ FuriPipe furi_pipe_alloc(size_t capacity, size_t trigger_level);
  * together.
  * 
  * The capacity and trigger level may be different for the two directions when
- * the pipe is created using this function. You can enable or disable welding
- * support, optimizing performance for your exact use case. Use
- * `furi_pipe_alloc` if you don't need control this fine.
+ * the pipe is created using this function. Use `furi_pipe_alloc` if you don't
+ * need control this fine.
  */
-FuriPipe furi_pipe_alloc_ex(
-    FuriPipeWeldingCap welding_cap,
-    FuriPipeDirectionSettings to_alice,
-    FuriPipeDirectionSettings to_bob);
+FuriPipe furi_pipe_alloc_ex(FuriPipeSideReceiveSettings alice, FuriPipeSideReceiveSettings bob);
 
 /**
  * @brief Gets the role of a pipe side.
@@ -171,30 +146,6 @@ size_t furi_pipe_bytes_available(FuriPipeSide* pipe);
  * into.
  */
 size_t furi_pipe_spaces_available(FuriPipeSide* pipe);
-
-/**
- * @brief Welds two sides of different pipes together.
- * 
- * When two sides of a pipe are welded together, data that appears at `side_1`
- * is automatically pushed into `side_2` and vice versa. This connection may be
- * undone using `furi_pipe_unweld`.
- * 
- * While a side of a pipe is welded to another, it is impossible to use any of
- * the methods to inspect and/or modify the data flowing through the joint:
- *   - `send` and `receive` become no-ops and return 0,
- *   - `bytes_available` and `spaces_available` return 0.
- * 
- * You cannot weld an Alice to an Alice or a Bob to a Bob. You can only weld an
- * Alice to a Bob.
- */
-void furi_pipe_weld(FuriPipeSide* side_1, FuriPipeSide* side_2);
-
-/**
- * @brief Undoes a `weld` operation.
- * 
- * See `furi_pipe_weld`.
- */
-void furi_pipe_unweld(FuriPipeSide* side);
 
 #ifdef __cplusplus
 }

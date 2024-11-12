@@ -138,61 +138,6 @@ static void test_furi_pipe(TestFuriPrimitivesData* data) {
     furi_pipe_free(bob);
 }
 
-static void test_furi_pipe_welding(void) {
-    FuriPipe pipes[10];
-    for(size_t i = 0; i < COUNT_OF(pipes); i++) {
-        pipes[i] = furi_pipe_alloc(PIPE_SIZE, PIPE_TRG_LEVEL);
-        mu_assert_int_eq(FuriPipeRoleAlice, furi_pipe_role(pipes[i].alices_side));
-        mu_assert_int_eq(FuriPipeRoleBob, furi_pipe_role(pipes[i].bobs_side));
-    }
-
-    FuriPipeSide* alice = pipes[0].alices_side;
-    FuriPipeSide* bob = pipes[COUNT_OF(pipes) - 1].bobs_side;
-    const uint8_t src_buf[4] = {0xDE, 0xAD, 0xBE, 0xEF};
-    furi_pipe_send(alice, src_buf, sizeof(src_buf), FuriWaitForever);
-
-    for(size_t i = 0; i < COUNT_OF(pipes) - 1; i++) {
-        furi_pipe_weld(pipes[i].bobs_side, pipes[i + 1].alices_side); // lots of sparks!
-        mu_assert_int_eq(FuriPipeRoleJoint, furi_pipe_role(pipes[i].bobs_side));
-        mu_assert_int_eq(FuriPipeRoleJoint, furi_pipe_role(pipes[i + 1].alices_side));
-    }
-    mu_assert_int_eq(FuriPipeRoleAlice, furi_pipe_role(alice));
-    mu_assert_int_eq(FuriPipeRoleBob, furi_pipe_role(bob));
-
-    // make sure that residual data is copied over
-    uint8_t buf[sizeof(src_buf)];
-    furi_pipe_receive(bob, buf, sizeof(buf), FuriWaitForever);
-    mu_assert_mem_eq(src_buf, buf, sizeof(buf));
-
-    for(uint8_t i = 0;; ++i) {
-        mu_assert_int_eq(PIPE_SIZE - i, furi_pipe_spaces_available(alice));
-        mu_assert_int_eq(i, furi_pipe_bytes_available(bob));
-
-        if(furi_pipe_send(alice, &i, sizeof(uint8_t), 0) != sizeof(uint8_t)) {
-            break;
-        }
-
-        mu_assert_int_eq(PIPE_SIZE - i, furi_pipe_spaces_available(bob));
-        mu_assert_int_eq(i, furi_pipe_bytes_available(alice));
-
-        if(furi_pipe_send(bob, &i, sizeof(uint8_t), 0) != sizeof(uint8_t)) {
-            break;
-        }
-    }
-
-    // make sure that new data reaches its destination
-    for(uint8_t i = 0;; ++i) {
-        mu_assert_int_eq(PIPE_SIZE - i, furi_pipe_bytes_available(bob));
-
-        uint8_t value;
-        if(furi_pipe_receive(bob, &value, sizeof(uint8_t), 0) != sizeof(uint8_t)) {
-            break;
-        }
-
-        mu_assert_int_eq(i, value);
-    }
-}
-
 // This is a stub that needs expanding
 void test_furi_primitives(void) {
     TestFuriPrimitivesData data = {
@@ -208,6 +153,4 @@ void test_furi_primitives(void) {
 
     furi_message_queue_free(data.message_queue);
     furi_stream_buffer_free(data.stream_buffer);
-
-    test_furi_pipe_welding();
 }
