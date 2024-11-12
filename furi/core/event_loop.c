@@ -415,6 +415,18 @@ void furi_event_loop_subscribe_mutex(
         instance, mutex, &furi_mutex_event_loop_contract, event, callback, context);
 }
 
+void furi_event_loop_subscribe_pipe(
+    FuriEventLoop* instance,
+    FuriPipeSide* pipe,
+    FuriEventLoopEvent event,
+    FuriEventLoopEventCallback callback,
+    void* context) {
+    extern const FuriEventLoopContract furi_pipe_event_loop_contract;
+
+    furi_event_loop_object_subscribe(
+        instance, pipe, &furi_pipe_event_loop_contract, event, callback, context);
+}
+
 /**
  * Public generic unsubscription API
  */

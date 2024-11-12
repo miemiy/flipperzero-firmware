@@ -1238,6 +1238,7 @@ Function,+,furi_event_loop_stop,void,FuriEventLoop*
 Function,+,furi_event_loop_subscribe_event_flag,void,"FuriEventLoop*, FuriEventFlag*, FuriEventLoopEvent, FuriEventLoopEventCallback, void*"
 Function,+,furi_event_loop_subscribe_message_queue,void,"FuriEventLoop*, FuriMessageQueue*, FuriEventLoopEvent, FuriEventLoopEventCallback, void*"
 Function,+,furi_event_loop_subscribe_mutex,void,"FuriEventLoop*, FuriMutex*, FuriEventLoopEvent, FuriEventLoopEventCallback, void*"
+Function,+,furi_event_loop_subscribe_pipe,void,"FuriEventLoop*, FuriPipeSide*, FuriEventLoopEvent, FuriEventLoopEventCallback, void*"
 Function,+,furi_event_loop_subscribe_semaphore,void,"FuriEventLoop*, FuriSemaphore*, FuriEventLoopEvent, FuriEventLoopEventCallback, void*"
 Function,+,furi_event_loop_subscribe_stream_buffer,void,"FuriEventLoop*, FuriStreamBuffer*, FuriEventLoopEvent, FuriEventLoopEventCallback, void*"
 Function,+,furi_event_loop_tick_set,void,"FuriEventLoop*, uint32_t, FuriEventLoopTickCallback, void*"
@@ -1808,6 +1809,7 @@ Function,+,furi_stream_buffer_receive,size_t,"FuriStreamBuffer*, void*, size_t, 
 Function,+,furi_stream_buffer_reset,FuriStatus,FuriStreamBuffer*
 Function,+,furi_stream_buffer_send,size_t,"FuriStreamBuffer*, const void*, size_t, uint32_t"
 Function,+,furi_stream_buffer_spaces_available,size_t,FuriStreamBuffer*
+Function,+,furi_stream_get_trigger_level,size_t,FuriStreamBuffer*
 Function,+,furi_stream_set_trigger_level,_Bool,"FuriStreamBuffer*, size_t"
 Function,+,furi_string_alloc,FuriString*,
 Function,+,furi_string_alloc_move,FuriString*,FuriString*
