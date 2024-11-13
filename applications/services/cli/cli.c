@@ -16,8 +16,6 @@ Cli* cli_alloc(void) {
     cli->last_line = furi_string_alloc();
     cli->line = furi_string_alloc();
 
-    cli->session = NULL;
-
     cli->mutex = furi_mutex_alloc(FuriMutexTypeNormal);
 
     cli->idle_sem = furi_semaphore_alloc(1, 0);
@@ -27,69 +25,43 @@ Cli* cli_alloc(void) {
 
 void cli_putc(Cli* cli, char c) {
     furi_check(cli);
-    if(cli->session != NULL) {
-        cli->session->tx((uint8_t*)&c, 1);
-    }
+    UNUSED(c);
 }
 
 char cli_getc(Cli* cli) {
     furi_check(cli);
     char c = 0;
-    if(cli->session != NULL) {
-        if(cli->session->rx((uint8_t*)&c, 1, FuriWaitForever) == 0) {
-            cli_reset(cli);
-            furi_delay_tick(10);
-        }
-    } else {
-        cli_reset(cli);
-        furi_delay_tick(10);
-    }
     return c;
 }
 
 void cli_write(Cli* cli, const uint8_t* buffer, size_t size) {
     furi_check(cli);
-    if(cli->session != NULL) {
-        cli->session->tx(buffer, size);
-    }
+    UNUSED(buffer);
+    UNUSED(size);
 }
 
 size_t cli_read(Cli* cli, uint8_t* buffer, size_t size) {
     furi_check(cli);
-    if(cli->session != NULL) {
-        return cli->session->rx(buffer, size, FuriWaitForever);
-    } else {
-        return 0;
-    }
+    UNUSED(buffer);
+    UNUSED(size);
+    return 0;
 }
 
 size_t cli_read_timeout(Cli* cli, uint8_t* buffer, size_t size, uint32_t timeout) {
     furi_check(cli);
-    if(cli->session != NULL) {
-        return cli->session->rx(buffer, size, timeout);
-    } else {
-        return 0;
-    }
+    UNUSED(buffer);
+    UNUSED(size);
+    UNUSED(timeout);
+    return 0;
 }
 
 bool cli_is_connected(Cli* cli) {
     furi_check(cli);
-    if(cli->session != NULL) {
-        return cli->session->is_connected();
-    }
     return false;
 }
 
 bool cli_cmd_interrupt_received(Cli* cli) {
     furi_check(cli);
-    char c = '\0';
-    if(cli_is_connected(cli)) {
-        if(cli->session->rx((uint8_t*)&c, 1, 0) == 1) {
-            return c == CliSymbolAsciiETX;
-        }
-    } else {
-        return true;
-    }
     return false;
 }
 
@@ -426,15 +398,9 @@ void cli_delete_command(Cli* cli, const char* name) {
 
 void cli_session_open(Cli* cli, void* session) {
     furi_check(cli);
+    UNUSED(session);
 
     furi_check(furi_mutex_acquire(cli->mutex, FuriWaitForever) == FuriStatusOk);
-    cli->session = session;
-    if(cli->session != NULL) {
-        cli->session->init();
-        furi_thread_set_stdout_callback(cli->session->tx_stdout, NULL);
-    } else {
-        furi_thread_set_stdout_callback(NULL, NULL);
-    }
     furi_semaphore_release(cli->idle_sem);
     furi_check(furi_mutex_release(cli->mutex) == FuriStatusOk);
 }
@@ -443,16 +409,13 @@ void cli_session_close(Cli* cli) {
     furi_check(cli);
 
     furi_check(furi_mutex_acquire(cli->mutex, FuriWaitForever) == FuriStatusOk);
-    if(cli->session != NULL) {
-        cli->session->deinit();
-    }
-    cli->session = NULL;
     furi_thread_set_stdout_callback(NULL, NULL);
     furi_check(furi_mutex_release(cli->mutex) == FuriStatusOk);
 }
 
 int32_t cli_srv(void* p) {
     UNUSED(p);
+
     Cli* cli = cli_alloc();
 
     // Init basic cli commands
@@ -460,25 +423,8 @@ int32_t cli_srv(void* p) {
 
     furi_record_create(RECORD_CLI, cli);
 
-    if(cli->session != NULL) {
-        furi_thread_set_stdout_callback(cli->session->tx_stdout, NULL);
-    } else {
-        furi_thread_set_stdout_callback(NULL, NULL);
-    }
-
-    if(furi_hal_rtc_get_boot_mode() == FuriHalRtcBootModeNormal) {
-        cli_session_open(cli, &cli_vcp);
-    } else {
-        FURI_LOG_W(TAG, "Skipping start in special boot mode");
-    }
-
-    while(1) {
-        if(cli->session != NULL) {
-            cli_process_input(cli);
-        } else {
-            furi_check(furi_semaphore_acquire(cli->idle_sem, FuriWaitForever) == FuriStatusOk);
-        }
-    }
+    while(1)
+        furi_delay_tick(FuriWaitForever);
 
     return 0;
 }

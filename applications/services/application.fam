@@ -10,5 +10,6 @@ App(
         "desktop",
         "loader",
         "power",
+        "cli_vcp",
     ],
 )

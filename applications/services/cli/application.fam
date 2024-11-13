@@ -4,7 +4,17 @@ App(
     apptype=FlipperAppType.SERVICE,
     entry_point="cli_srv",
     cdefines=["SRV_CLI"],
-    stack_size=4 * 1024,
+    stack_size=1 * 1024,
     order=30,
-    sdk_headers=["cli.h", "cli_vcp.h"],
+    sdk_headers=["cli.h"],
+)
+
+App(
+    appid="cli_vcp",
+    name="CliVcpSrv",
+    apptype=FlipperAppType.SERVICE,
+    entry_point="cli_vcp_srv",
+    stack_size=1 * 1024,
+    order=40,
+    sdk_headers=["cli_vcp.h"],
 )

@@ -1,5 +1,5 @@
 entry,status,name,type,params
-Version,+,79.1,,
+Version,+,80.0,,
 Header,+,applications/services/bt/bt_service/bt.h,,
 Header,+,applications/services/bt/bt_service/bt_keys_storage.h,,
 Header,+,applications/services/cli/cli.h,,
@@ -784,6 +784,8 @@ Function,+,cli_read,size_t,"Cli*, uint8_t*, size_t"
 Function,+,cli_read_timeout,size_t,"Cli*, uint8_t*, size_t, uint32_t"
 Function,+,cli_session_close,void,Cli*
 Function,+,cli_session_open,void,"Cli*, void*"
+Function,+,cli_vcp_disable,void,CliVcp*
+Function,+,cli_vcp_enable,void,CliVcp*
 Function,+,cli_write,void,"Cli*, const uint8_t*, size_t"
 Function,+,composite_api_resolver_add,void,"CompositeApiResolver*, const ElfApiInterface*"
 Function,+,composite_api_resolver_alloc,CompositeApiResolver*,
@@ -2896,7 +2898,6 @@ Variable,-,_sys_errlist,const char*[],
 Variable,-,_sys_nerr,int,
 Variable,-,ble_profile_hid,const FuriHalBleProfileTemplate*,
 Variable,-,ble_profile_serial,const FuriHalBleProfileTemplate*,
-Variable,+,cli_vcp,CliSession,
 Variable,+,compress_config_heatshrink_default,const CompressConfigHeatshrink,
 Variable,+,firmware_api_interface,const ElfApiInterface*,
 Variable,+,furi_hal_i2c_bus_external,FuriHalI2cBus,
