@@ -88,6 +88,19 @@ static void infrared_rpc_command_callback(const RpcAppSystemEvent* event, void* 
             view_dispatcher_send_custom_event(
                 infrared->view_dispatcher, InfraredCustomEventTypeRpcButtonPressIndex);
         }
+    } else if(event->type == RpcAppEventTypeButtonPressRelease) {
+        furi_assert(
+            event->data.type == RpcAppSystemEventDataTypeString ||
+            event->data.type == RpcAppSystemEventDataTypeInt32);
+        if(event->data.type == RpcAppSystemEventDataTypeString) {
+            furi_string_set(infrared->button_name, event->data.string);
+            view_dispatcher_send_custom_event(
+                infrared->view_dispatcher, InfraredCustomEventTypeRpcButtonPressReleaseName);
+        } else {
+            infrared->app_state.current_button_index = event->data.i32;
+            view_dispatcher_send_custom_event(
+                infrared->view_dispatcher, InfraredCustomEventTypeRpcButtonPressReleaseIndex);
+        }
     } else if(event->type == RpcAppEventTypeButtonRelease) {
         view_dispatcher_send_custom_event(
             infrared->view_dispatcher, InfraredCustomEventTypeRpcButtonRelease);
