@@ -109,13 +109,13 @@ void furi_pipe_free(FuriPipeSide* pipe) {
 static void _furi_pipe_stdout_cb(const char* data, size_t size, void* context) {
     furi_assert(context);
     FuriPipeSide* pipe = context;
-    furi_check(furi_stream_buffer_send(pipe->sending, data, size, FuriWaitForever) == size);
+    furi_check(furi_pipe_send(pipe, data, size, FuriWaitForever) == size);
 }
 
 static size_t _furi_pipe_stdin_cb(char* data, size_t size, FuriWait timeout, void* context) {
     furi_assert(context);
     FuriPipeSide* pipe = context;
-    return furi_stream_buffer_receive(pipe->sending, data, size, timeout);
+    return furi_pipe_receive(pipe, data, size, timeout);
 }
 
 void furi_pipe_install_as_stdio(FuriPipeSide* pipe) {
