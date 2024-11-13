@@ -109,7 +109,11 @@ void furi_pipe_free(FuriPipeSide* pipe) {
 static void _furi_pipe_stdout_cb(const char* data, size_t size, void* context) {
     furi_assert(context);
     FuriPipeSide* pipe = context;
-    furi_check(furi_pipe_send(pipe, data, size, FuriWaitForever) == size);
+    while(size) {
+        size_t sent = furi_pipe_send(pipe, data, size, FuriWaitForever);
+        data += sent;
+        size -= sent;
+    }
 }
 
 static size_t _furi_pipe_stdin_cb(char* data, size_t size, FuriWait timeout, void* context) {
