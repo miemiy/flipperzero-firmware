@@ -162,11 +162,12 @@ bool infrared_scene_rpc_on_event(void* context, SceneManagerEvent event) {
                 }
             }
 
-            if(rpc_state == InfraredRpcStateSending) {
+            if(result) {
                 infrared_tx_stop(infrared);
-                result = true;
                 scene_manager_set_scene_state(
                     infrared->scene_manager, InfraredSceneRpc, InfraredRpcStateLoaded);
+                scene_manager_stop(infrared->scene_manager);
+                view_dispatcher_stop(infrared->view_dispatcher);
             }
 
             rpc_system_app_confirm(infrared->rpc_ctx, result);
