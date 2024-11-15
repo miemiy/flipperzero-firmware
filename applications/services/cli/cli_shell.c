@@ -28,9 +28,20 @@ static void cli_shell_tick(void* context) {
     }
 }
 
-static void cli_shell_prompt(CliShell* cli_shell) {
+static size_t cli_shell_prompt_length(CliShell* cli_shell) {
     UNUSED(cli_shell);
-    printf("\r\n>: ");
+    return strlen(">: ");
+}
+
+static void cli_shell_format_prompt(CliShell* cli_shell, char* buf, size_t length) {
+    UNUSED(cli_shell);
+    snprintf(buf, length - 1, ">: ");
+}
+
+static void cli_shell_prompt(CliShell* cli_shell) {
+    char buffer[128];
+    cli_shell_format_prompt(cli_shell, buffer, sizeof(buffer));
+    printf("\r\n%s", buffer);
     fflush(stdout);
 }
 
@@ -38,7 +49,7 @@ static void cli_shell_dump_history(CliShell* cli_shell) {
     FURI_LOG_T(TAG, "history depth=%d, entries:", ShellHistory_size(cli_shell->history));
     for
         M_EACH(entry, cli_shell->history, ShellHistory_t) {
-            FURI_LOG_T(TAG, "    \"%s\"", furi_string_get_cstr(*entry));
+            FURI_LOG_T(TAG, "  \"%s\"", furi_string_get_cstr(*entry));
         }
 }
 
@@ -54,6 +65,65 @@ static void cli_shell_ensure_not_overwriting_history(CliShell* cli_shell) {
     }
 }
 
+typedef enum {
+    CliCharClassWord,
+    CliCharClassSpace,
+    CliCharClassOther,
+} CliCharClass;
+
+/**
+ * @brief Determines the class that a character belongs to
+ * 
+ * The return value of this function should not be used on its own; it should
+ * only be used for comparing it with other values returned by this function.
+ * This function is used internally in `cli_skip_run`.
+ */
+static CliCharClass cli_char_class(char c) {
+    if((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_') {
+        return CliCharClassWord;
+    } else if(c == ' ') {
+        return CliCharClassSpace;
+    } else {
+        return CliCharClassOther;
+    }
+}
+
+typedef enum {
+    CliSkipDirectionLeft,
+    CliSkipDirectionRight,
+} CliSkipDirection;
+
+/**
+ * @brief Skips a run of a class of characters
+ * 
+ * @param string Input string
+ * @param original_pos Position to start the search at
+ * @param direction Direction in which to perform the search
+ * @returns The position at which the run ends
+ */
+static size_t cli_skip_run(FuriString* string, size_t original_pos, CliSkipDirection direction) {
+    if(furi_string_size(string) == 0) return original_pos;
+    if(direction == CliSkipDirectionLeft && original_pos == 0) return original_pos;
+    if(direction == CliSkipDirectionRight && original_pos == furi_string_size(string))
+        return original_pos;
+
+    int8_t look_offset = (direction == CliSkipDirectionLeft) ? -1 : 0;
+    int8_t increment = (direction == CliSkipDirectionLeft) ? -1 : 1;
+    int32_t position = original_pos;
+    CliCharClass start_class =
+        cli_char_class(furi_string_get_char(string, position + look_offset));
+
+    while(true) {
+        position += increment;
+        if(position < 0) break;
+        if(position >= (int32_t)furi_string_size(string)) break;
+        if(cli_char_class(furi_string_get_char(string, position + look_offset)) != start_class)
+            break;
+    }
+
+    return MAX(0, position);
+}
+
 static void cli_shell_data_available(FuriEventLoopObject* object, void* context) {
     UNUSED(object);
     CliShell* cli_shell = context;
@@ -66,7 +136,7 @@ static void cli_shell_data_available(FuriEventLoopObject* object, void* context)
     if(!parse_result.is_done) return;
     CliKeyCombo key_combo = parse_result.result;
     if(key_combo.key == CliKeyUnrecognized) return;
-    FURI_LOG_T(TAG, "mod=%d, key='%c'=%d", key_combo.modifiers, key_combo.key, key_combo.key);
+    FURI_LOG_T(TAG, "mod=%d, key=%d='%c'", key_combo.modifiers, key_combo.key, key_combo.key);
 
     // do things the user requests
     if(key_combo.modifiers == 0 && key_combo.key == CliKeyETX) { // usually Ctrl+C
@@ -76,6 +146,19 @@ static void cli_shell_data_available(FuriEventLoopObject* object, void* context)
         cli_shell->history_position = 0;
         printf("^C");
         cli_shell_prompt(cli_shell);
+
+    } else if(key_combo.modifiers == 0 && key_combo.key == CliKeyFF) { // usually Ctrl+L
+        // clear screen
+        FuriString* command = *ShellHistory_cget(cli_shell->history, cli_shell->history_position);
+        char prompt[128];
+        cli_shell_format_prompt(cli_shell, prompt, sizeof(prompt));
+        printf(
+            ANSI_ERASE_DISPLAY(ANSI_ERASE_ENTIRE) ANSI_ERASE_SCROLLBACK_BUFFER ANSI_CURSOR_POS(
+                "1", "1") "%s%s" ANSI_CURSOR_HOR_POS("%d"),
+            prompt,
+            furi_string_get_cstr(command),
+            strlen(prompt) + cli_shell->line_position + 1 /* 1-based column indexing */);
+        fflush(stdout);
 
     } else if(key_combo.modifiers == 0 && key_combo.key == CliKeyLF) {
         // get command and update history
@@ -99,34 +182,117 @@ static void cli_shell_data_available(FuriEventLoopObject* object, void* context)
     } else if(key_combo.modifiers == 0 && (key_combo.key == CliKeyUp || key_combo.key == CliKeyDown)) {
         // go up and down in history
         int increment = (key_combo.key == CliKeyUp) ? 1 : -1;
-        cli_shell->history_position = CLAMP(
+        size_t new_pos = CLAMP(
             (int)cli_shell->history_position + increment,
             (int)ShellHistory_size(cli_shell->history) - 1,
             0);
 
         // print prompt with selected command
+        if(new_pos != cli_shell->history_position) {
+            cli_shell->history_position = new_pos;
+            FuriString* command =
+                *ShellHistory_cget(cli_shell->history, cli_shell->history_position);
+            printf(
+                ANSI_CURSOR_HOR_POS("1") ">: %s" ANSI_ERASE_LINE(ANSI_ERASE_FROM_CURSOR_TO_END),
+                furi_string_get_cstr(command));
+            fflush(stdout);
+            cli_shell->line_position = furi_string_size(command);
+        }
+
+    } else if(
+        key_combo.modifiers == 0 &&
+        (key_combo.key == CliKeyLeft || key_combo.key == CliKeyRight)) {
+        // go left and right in the current line
         FuriString* command = *ShellHistory_cget(cli_shell->history, cli_shell->history_position);
-        printf(
-            ANSI_CURSOR_HOR_POS("1") ">: %s" ANSI_ERASE_LINE(ANSI_ERASE_FROM_CURSOR_TO_END),
-            furi_string_get_cstr(command));
+        int increment = (key_combo.key == CliKeyRight) ? 1 : -1;
+        size_t new_pos =
+            CLAMP((int)cli_shell->line_position + increment, (int)furi_string_size(command), 0);
+
+        // move cursor
+        if(new_pos != cli_shell->line_position) {
+            cli_shell->line_position = new_pos;
+            printf("%s", (increment == 1) ? ANSI_CURSOR_RIGHT_BY("1") : ANSI_CURSOR_LEFT_BY("1"));
+            fflush(stdout);
+        }
+
+    } else if(key_combo.modifiers == 0 && key_combo.key == CliKeyHome) {
+        // go to the start
+        cli_shell->line_position = 0;
+        printf(ANSI_CURSOR_HOR_POS("%d"), cli_shell_prompt_length(cli_shell) + 1);
         fflush(stdout);
-        cli_shell->line_position = furi_string_size(command);
+
+    } else if(key_combo.modifiers == 0 && key_combo.key == CliKeyEnd) {
+        // go to the end
+        FuriString* line = *ShellHistory_cget(cli_shell->history, cli_shell->history_position);
+        cli_shell->line_position = furi_string_size(line);
+        printf(
+            ANSI_CURSOR_HOR_POS("%d"),
+            cli_shell_prompt_length(cli_shell) + cli_shell->line_position + 1);
+        fflush(stdout);
+
+    } else if(
+        key_combo.modifiers == 0 &&
+        (key_combo.key == CliKeyBackspace || key_combo.key == CliKeyDEL)) {
+        // erase one character
+        cli_shell_ensure_not_overwriting_history(cli_shell);
+        FuriString* line = *ShellHistory_front(cli_shell->history);
+        if(cli_shell->line_position == 0) {
+            putc(CliKeyBell, stdout);
+            fflush(stdout);
+            return;
+        }
+        cli_shell->line_position--;
+        furi_string_replace_at(line, cli_shell->line_position, 1, "");
+
+        // move cursor, print the rest of the line, restore cursor
+        printf(
+            ANSI_CURSOR_LEFT_BY("1") "%s" ANSI_ERASE_LINE(ANSI_ERASE_FROM_CURSOR_TO_END),
+            furi_string_get_cstr(line) + cli_shell->line_position);
+        size_t left_by = furi_string_size(line) - cli_shell->line_position;
+        if(left_by) // apparently LEFT_BY("0") shift left by one ._ .
+            printf(ANSI_CURSOR_LEFT_BY("%d"), left_by);
+        fflush(stdout);
+
+    } else if(
+        key_combo.modifiers == CliModKeyCtrl &&
+        (key_combo.key == CliKeyLeft || key_combo.key == CliKeyRight)) {
+        // skip run of similar chars to the left or right
+        FuriString* line = *ShellHistory_cget(cli_shell->history, cli_shell->history_position);
+        CliSkipDirection direction = (key_combo.key == CliKeyLeft) ? CliSkipDirectionLeft :
+                                                                     CliSkipDirectionRight;
+        cli_shell->line_position = cli_skip_run(line, cli_shell->line_position, direction);
+        printf(
+            ANSI_CURSOR_HOR_POS("%d"),
+            cli_shell_prompt_length(cli_shell) + cli_shell->line_position + 1);
+        fflush(stdout);
+
+    } else if(key_combo.modifiers == 0 && key_combo.key == CliKeyETB) {
+        // delete run of similar chars to the left
+        cli_shell_ensure_not_overwriting_history(cli_shell);
+        FuriString* line = *ShellHistory_cget(cli_shell->history, cli_shell->history_position);
+        size_t run_start = cli_skip_run(line, cli_shell->line_position, CliSkipDirectionLeft);
+        furi_string_replace_at(line, run_start, cli_shell->line_position - run_start, "");
+        cli_shell->line_position = run_start;
+        printf(
+            ANSI_CURSOR_HOR_POS("%zu") "%s" ANSI_ERASE_LINE(ANSI_ERASE_FROM_CURSOR_TO_END)
+                ANSI_CURSOR_HOR_POS("%zu"),
+            cli_shell_prompt_length(cli_shell) + cli_shell->line_position + 1,
+            furi_string_get_cstr(line) + run_start,
+            cli_shell_prompt_length(cli_shell) + run_start + 1);
+        fflush(stdout);
 
     } else if(key_combo.modifiers == 0 && key_combo.key >= CliKeySpace && key_combo.key < CliKeyDEL) {
-        cli_shell_ensure_not_overwriting_history(cli_shell);
-
         // insert character
+        cli_shell_ensure_not_overwriting_history(cli_shell);
         FuriString* line = *ShellHistory_front(cli_shell->history);
         if(cli_shell->line_position == furi_string_size(line)) {
             furi_string_push_back(line, key_combo.key);
-            putc(key_combo.key, stdout);
-            fflush(stdout);
         } else {
             const char in_str[2] = {key_combo.key, 0};
             furi_string_replace_at(line, cli_shell->line_position, 0, in_str);
-            printf("\e[4h%c\e[4l", key_combo.key);
-            fflush(stdout);
         }
+        printf(ANSI_INSERT_MODE_ENABLE "%c" ANSI_INSERT_MODE_DISABLE, key_combo.key);
+        fflush(stdout);
         cli_shell->line_position++;
     }
 }

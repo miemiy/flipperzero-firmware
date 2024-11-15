@@ -65,9 +65,14 @@ extern "C" {
 #define ANSI_ERASE_FROM_START_TO_CURSOR "1"
 #define ANSI_ERASE_ENTIRE               "2"
 
-#define ANSI_ERASE_DISPLAY(portion)                     "\e[" portion "J"
-#define ANSI_ERASE_LINE(portion)                        "\e[" portion "K"
-#define ANSI_ERASE_ENTIRE_DISPLAY_AND_SCROLLBACK_BUFFER ANSI_ERASE_DISPLAY("3")
+#define ANSI_ERASE_DISPLAY(portion)  "\e[" portion "J"
+#define ANSI_ERASE_LINE(portion)     "\e[" portion "K"
+#define ANSI_ERASE_SCROLLBACK_BUFFER ANSI_ERASE_DISPLAY("3")
+
+// misc
+
+#define ANSI_INSERT_MODE_ENABLE  "\e[4h"
+#define ANSI_INSERT_MODE_DISABLE "\e[4l"
 
 typedef enum {
     CliKeyUnrecognized = 0,
@@ -79,6 +84,7 @@ typedef enum {
     CliKeyBackspace = 0x08,
     CliKeyTab = 0x09,
     CliKeyLF = 0x0A,
+    CliKeyFF = 0x0C,
     CliKeyCR = 0x0D,
     CliKeyETB = 0x17,
     CliKeyEsc = 0x1B,

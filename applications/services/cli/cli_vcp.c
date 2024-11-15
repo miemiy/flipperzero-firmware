@@ -133,7 +133,6 @@ static void cli_vcp_data_from_shell(FuriEventLoopObject* object, void* context) 
 static void cli_vcp_shell_ready(FuriEventLoopObject* object, void* context) {
     UNUSED(object);
     CliVcp* cli_vcp = context;
-    FURI_LOG_T(TAG, "shell_ready");
     cli_vcp_maybe_receive_data(cli_vcp);
 }
 
