@@ -48,9 +48,9 @@ struct Gui {
     // Thread and lock
     FuriThreadId thread_id;
     FuriMutex* mutex;
+    FuriSemaphore* unlock;
 
     // Layers and Canvas
-    bool lockdown;
     bool direct_draw;
     ViewPortArray_t layers[GuiLayerMAX];
     Canvas* canvas;

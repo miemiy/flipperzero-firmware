@@ -11,8 +11,12 @@
 
 #define TAG "ClockSettingsAlarm"
 
+#define SNOOZE_MINUTES  9
+#define TIMEOUT_MINUTES 10
+
 typedef struct {
     DateTime now;
+    DateTime alarm_start;
     IconAnimation* icon;
 } ClockSettingsAlramModel;
 
@@ -47,12 +51,15 @@ static void clock_settings_alarm_draw_callback(Canvas* canvas, void* ctx) {
     ClockSettingsAlramModel* model = ctx;
     char buffer[64] = {};
 
+    // Clock icon
     canvas_draw_icon_animation(canvas, 5, 6, model->icon);
 
+    // Time
     canvas_set_font(canvas, FontBigNumbers);
     snprintf(buffer, sizeof(buffer), "%02u:%02u", model->now.hour, model->now.minute);
     canvas_draw_str(canvas, 58, 32, buffer);
 
+    // Date
     canvas_set_font(canvas, FontPrimary);
     snprintf(
         buffer,
@@ -62,6 +69,11 @@ static void clock_settings_alarm_draw_callback(Canvas* canvas, void* ctx) {
         model->now.month,
         model->now.year);
     canvas_draw_str(canvas, 60, 44, buffer);
+
+    // Press Back to snooze
+    canvas_set_font(canvas, FontPrimary);
+    canvas_draw_icon_ex(canvas, 5, 50, &I_back_btn_10x8, 0);
+    canvas_draw_str_aligned(canvas, 20, 50, AlignLeft, AlignTop, "Snooze");
 }
 
 static void clock_settings_alarm_input_callback(InputEvent* input_event, void* ctx) {
@@ -95,6 +107,7 @@ int32_t clock_settings_alarm(void* p) {
 
     // Register view port in GUI
     Gui* gui = furi_record_open(RECORD_GUI);
+    gui_remove_lockdown(gui);
     gui_add_view_port(gui, view_port, GuiLayerFullscreen);
 
     NotificationApp* notification = furi_record_open(RECORD_NOTIFICATION);
@@ -110,12 +123,32 @@ int32_t clock_settings_alarm(void* p) {
     while(running) {
         if(furi_message_queue_get(event_queue, &event, 2000) == FuriStatusOk) {
             if(event.type == InputTypePress) {
+                // Snooze
+                if(event.key == InputKeyBack) {
+                    furi_hal_rtc_get_datetime(&model.now);
+                    model.now.minute += SNOOZE_MINUTES;
+                    model.now.hour += model.now.minute / 60;
+                    model.now.minute %= 60;
+                    model.now.hour %= 24;
+
+                    furi_hal_rtc_set_alarm(NULL, false);
+                    furi_hal_rtc_set_alarm(&model.now, true);
+                }
                 running = false;
             }
         } else {
             notification_message(notification, &sequence_alarm);
             furi_hal_rtc_get_datetime(&model.now);
             view_port_update(view_port);
+
+            // Stop the alarm if it has been ringing for more than TIMEOUT_MINUTES
+            furi_hal_rtc_get_alarm(&model.alarm_start);
+            if((model.now.hour == model.alarm_start.hour &&
+                model.now.minute >= model.alarm_start.minute + TIMEOUT_MINUTES) ||
+               (model.now.hour == (model.alarm_start.hour + 1) % 24 &&
+                model.now.minute < (model.alarm_start.minute + TIMEOUT_MINUTES) % 60)) {
+                running = false;
+            }
         }
     }
 
@@ -125,6 +158,7 @@ int32_t clock_settings_alarm(void* p) {
     furi_record_close(RECORD_NOTIFICATION);
 
     view_port_enabled_set(view_port, false);
+    gui_set_lockdown(gui);
     gui_remove_view_port(gui, view_port);
     view_port_free(view_port);
     furi_message_queue_free(event_queue);
