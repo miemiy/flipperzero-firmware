@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - dev
+      - ssecsd/docker-runner
 
 env:
   TARGETS: f7
