@@ -56,8 +56,10 @@ class SerialMonitor:
         return ''.join(self.output)
 
 class Main(App):
+    # this is basic use without sub-commands, simply to reboot flipper / power it off, not meant as a full CLI wrapper
     def __init__(self, no_exit=False):
         super().__init__(no_exit)
+
 
     def init(self):
         self.parser.add_argument("-p", "--port", help="CDC Port", default="auto")
@@ -196,7 +198,6 @@ class Main(App):
                 'status': status
             }
 
-            # Store the results as a property of the instance
             self.test_results = test_results
 
             output_file = "unit_tests_output.txt"
