@@ -61,7 +61,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: unit-tests-output
-          path: scripts/unit_tests_output.txt, scripts/unit_tests_stm_output.txt
+          path: /opt/flipperzero-firmware/scripts/unit_tests_output.txt, /opt/flipperzero-firmware/scripts/unit_tests_stm_output.txt
 
       - name: 'Check GDB output'
         if: failure() && steps.flashing.outcome == 'success'
