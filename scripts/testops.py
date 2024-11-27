@@ -147,7 +147,9 @@ class Main(App):
                 try:
                     line = flipper.read.until("\r\n", cut_eol=True).decode()
                     self.logger.info(line)
-
+                    if 'command not found,' in line:
+                        self.logger.error(f"Command not found: {line}")
+                        return 1
                     full_output.append(line)
 
                     if "()" in line:
