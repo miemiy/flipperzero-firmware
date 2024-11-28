@@ -17,7 +17,7 @@ static void nfc_cli_print_usage(void) {
     }
 }
 
-static void nfc_cli_field(Cli* cli, FuriString* args) {
+static void nfc_cli_field(FuriPipeSide* pipe, FuriString* args) {
     UNUSED(args);
     // Check if nfc worker is not busy
     if(furi_hal_nfc_is_hal_ready() != FuriHalNfcErrorNone) {
@@ -32,7 +32,7 @@ static void nfc_cli_field(Cli* cli, FuriString* args) {
     printf("Field is on. Don't leave device in this mode for too long.\r\n");
     printf("Press Ctrl+C to abort\r\n");
 
-    while(!cli_cmd_interrupt_received(cli)) {
+    while(!cli_app_should_stop(pipe)) {
         furi_delay_ms(50);
     }
 
@@ -40,7 +40,7 @@ static void nfc_cli_field(Cli* cli, FuriString* args) {
     furi_hal_nfc_release();
 }
 
-static void nfc_cli(Cli* cli, FuriString* args, void* context) {
+static void nfc_cli(FuriPipeSide* pipe, FuriString* args, void* context) {
     UNUSED(context);
     FuriString* cmd;
     cmd = furi_string_alloc();
@@ -52,7 +52,7 @@ static void nfc_cli(Cli* cli, FuriString* args, void* context) {
         }
         if(furi_hal_rtc_is_flag_set(FuriHalRtcFlagDebug)) {
             if(furi_string_cmp_str(cmd, "field") == 0) {
-                nfc_cli_field(cli, args);
+                nfc_cli_field(pipe, args);
                 break;
             }
         }

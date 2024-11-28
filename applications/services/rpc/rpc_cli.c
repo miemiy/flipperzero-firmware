@@ -6,7 +6,7 @@
 #define TAG "RpcCli"
 
 typedef struct {
-    Cli* cli;
+    FuriPipeSide* pipe;
     bool session_close_request;
     FuriSemaphore* terminate_semaphore;
 } CliRpc;
@@ -19,7 +19,11 @@ static void rpc_cli_send_bytes_callback(void* context, uint8_t* bytes, size_t by
     furi_assert(bytes_len > 0);
     CliRpc* cli_rpc = context;
 
-    cli_write(cli_rpc->cli, bytes, bytes_len);
+    while(bytes_len) {
+        size_t sent = furi_pipe_send(cli_rpc->pipe, bytes, bytes_len, FuriWaitForever);
+        bytes += sent;
+        bytes_len -= sent;
+    }
 }
 
 static void rpc_cli_session_close_callback(void* context) {
@@ -36,9 +40,9 @@ static void rpc_cli_session_terminated_callback(void* context) {
     furi_semaphore_release(cli_rpc->terminate_semaphore);
 }
 
-void rpc_cli_command_start_session(Cli* cli, FuriString* args, void* context) {
+void rpc_cli_command_start_session(FuriPipeSide* pipe, FuriString* args, void* context) {
     UNUSED(args);
-    furi_assert(cli);
+    furi_assert(pipe);
     furi_assert(context);
     Rpc* rpc = context;
 
@@ -53,7 +57,7 @@ void rpc_cli_command_start_session(Cli* cli, FuriString* args, void* context) {
         return;
     }
 
-    CliRpc cli_rpc = {.cli = cli, .session_close_request = false};
+    CliRpc cli_rpc = {.pipe = pipe, .session_close_request = false};
     cli_rpc.terminate_semaphore = furi_semaphore_alloc(1, 0);
     rpc_session_set_context(rpc_session, &cli_rpc);
     rpc_session_set_send_bytes_callback(rpc_session, rpc_cli_send_bytes_callback);
@@ -64,8 +68,10 @@ void rpc_cli_command_start_session(Cli* cli, FuriString* args, void* context) {
     size_t size_received = 0;
 
     while(1) {
-        size_received = cli_read_timeout(cli_rpc.cli, buffer, CLI_READ_BUFFER_SIZE, 50);
-        if(!cli_is_connected(cli_rpc.cli) || cli_rpc.session_close_request) {
+        size_received =
+            furi_pipe_receive(cli_rpc.pipe, buffer, CLI_READ_BUFFER_SIZE, furi_ms_to_ticks(50));
+        if((furi_pipe_state(cli_rpc.pipe) == FuriPipeStateBroken) ||
+           cli_rpc.session_close_request) {
             break;
         }
 

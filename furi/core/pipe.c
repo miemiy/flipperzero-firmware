@@ -110,6 +110,7 @@ static void _furi_pipe_stdout_cb(const char* data, size_t size, void* context) {
     furi_assert(context);
     FuriPipeSide* pipe = context;
     while(size) {
+        if(furi_pipe_state(pipe) == FuriPipeStateBroken) return;
         size_t sent = furi_pipe_send(pipe, data, size, FuriWaitForever);
         data += sent;
         size -= sent;
@@ -130,8 +131,9 @@ void furi_pipe_install_as_stdio(FuriPipeSide* pipe) {
 
 size_t furi_pipe_receive(FuriPipeSide* pipe, void* data, size_t length, FuriWait timeout) {
     furi_check(pipe);
-    furi_event_loop_link_notify(pipe->peer_event_loop_link, FuriEventLoopEventOut);
-    return furi_stream_buffer_receive(pipe->receiving, data, length, timeout);
+    size_t received = furi_stream_buffer_receive(pipe->receiving, data, length, timeout);
+    if(received) furi_event_loop_link_notify(pipe->peer_event_loop_link, FuriEventLoopEventOut);
+    return received;
 }
 
 size_t furi_pipe_send(FuriPipeSide* pipe, const void* data, size_t length, FuriWait timeout) {

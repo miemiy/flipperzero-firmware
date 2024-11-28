@@ -1,12 +1,10 @@
 App(
-    appid="cli",
-    name="CliSrv",
-    apptype=FlipperAppType.SERVICE,
-    entry_point="cli_srv",
+    appid="cli_start",
+    apptype=FlipperAppType.STARTUP,
+    entry_point="cli_on_system_start",
     cdefines=["SRV_CLI"],
-    stack_size=1 * 1024,
-    order=30,
-    sdk_headers=["cli.h"],
+    sources=["cli.c"],
+    order=0,
 )
 
 App(
@@ -14,7 +12,8 @@ App(
     name="CliVcpSrv",
     apptype=FlipperAppType.SERVICE,
     entry_point="cli_vcp_srv",
-    stack_size=1 * 1024,
+    stack_size=768,
     order=40,
     sdk_headers=["cli_vcp.h"],
+    sources=["cli.c", "cli_vcp.c", "cli_shell.c", "cli_commands.c", "cli_ansi.c"],
 )

@@ -123,9 +123,9 @@ static void usb_uart_vcp_deinit(UsbUartBridge* usb_uart, uint8_t vcp_ch) {
     UNUSED(usb_uart);
     furi_hal_cdc_set_callbacks(vcp_ch, NULL, NULL);
     if(vcp_ch != 0) {
-        Cli* cli = furi_record_open(RECORD_CLI);
-        cli_session_close(cli);
-        furi_record_close(RECORD_CLI);
+        CliVcp* cli_vcp = furi_record_open(RECORD_CLI_VCP);
+        cli_vcp_disable(cli_vcp);
+        furi_record_close(RECORD_CLI_VCP);
     }
 }
 

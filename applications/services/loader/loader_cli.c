@@ -110,8 +110,8 @@ static void loader_cli_signal(FuriString* args, Loader* loader) {
     }
 }
 
-static void loader_cli(Cli* cli, FuriString* args, void* context) {
-    UNUSED(cli);
+static void loader_cli(FuriPipeSide* pipe, FuriString* args, void* context) {
+    UNUSED(pipe);
     UNUSED(context);
     Loader* loader = furi_record_open(RECORD_LOADER);
 
@@ -141,7 +141,7 @@ static void loader_cli(Cli* cli, FuriString* args, void* context) {
 void loader_on_system_start(void) {
 #ifdef SRV_CLI
     Cli* cli = furi_record_open(RECORD_CLI);
-    cli_add_command(cli, RECORD_LOADER, CliCommandFlagParallelSafe, loader_cli, NULL);
+    cli_add_command(cli, RECORD_LOADER, CliCommandFlagDefault, loader_cli, NULL);
     furi_record_close(RECORD_CLI);
 #else
     UNUSED(loader_cli);

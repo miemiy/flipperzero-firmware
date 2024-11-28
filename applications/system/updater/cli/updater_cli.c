@@ -63,8 +63,8 @@ static const CliSubcommand update_cli_subcommands[] = {
     {.command = "help", .handler = updater_cli_help},
 };
 
-static void updater_cli_ep(Cli* cli, FuriString* args, void* context) {
-    UNUSED(cli);
+static void updater_cli_ep(FuriPipeSide* pipe, FuriString* args, void* context) {
+    UNUSED(pipe);
     UNUSED(context);
     FuriString* subcommand;
     subcommand = furi_string_alloc();

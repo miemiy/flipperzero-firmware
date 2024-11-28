@@ -1,18 +1,13 @@
+/**
+ * @file cli_i.h
+ * Internal API for getting commands registered with the CLI
+ */
+
 #pragma once
 
-#include "cli.h"
-
 #include <furi.h>
-#include <furi_hal.h>
-
-#include <m-dict.h>
 #include <m-bptree.h>
-#include <m-array.h>
-
-#include "cli_vcp.h"
-
-#define CLI_LINE_SIZE_MAX
-#define CLI_COMMANDS_TREE_RANK 4
+#include "cli.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -21,18 +16,10 @@ extern "C" {
 typedef struct {
     CliCallback callback;
     void* context;
-    uint32_t flags;
+    CliCommandFlag flags;
 } CliCommand;
 
-struct CliSession {
-    void (*init)(void);
-    void (*deinit)(void);
-    size_t (*rx)(uint8_t* buffer, size_t size, uint32_t timeout);
-    size_t (*rx_stdin)(uint8_t* buffer, size_t size, uint32_t timeout, void* context);
-    void (*tx)(const uint8_t* buffer, size_t size);
-    void (*tx_stdout)(const char* data, size_t size, void* context);
-    bool (*is_connected)(void);
-};
+#define CLI_COMMANDS_TREE_RANK 4
 
 BPTREE_DEF2(
     CliCommandTree,
@@ -40,27 +27,20 @@ BPTREE_DEF2(
     FuriString*,
     FURI_STRING_OPLIST,
     CliCommand,
-    M_POD_OPLIST)
+    M_POD_OPLIST);
 
 #define M_OPL_CliCommandTree_t() BPTREE_OPLIST(CliCommandTree, M_POD_OPLIST)
 
-struct Cli {
-    CliCommandTree_t commands;
-    FuriMutex* mutex;
-    FuriSemaphore* idle_sem;
-    FuriString* last_line;
-    FuriString* line;
+bool cli_get_command(Cli* cli, FuriString* command, CliCommand* result);
 
-    size_t cursor_position;
-};
+void cli_lock_commands(Cli* cli);
 
-Cli* cli_alloc(void);
+void cli_unlock_commands(Cli* cli);
 
-void cli_reset(Cli* cli);
-
-void cli_putc(Cli* cli, char c);
-
-void cli_stdout_callback(void* _cookie, const char* data, size_t size);
+/**
+ * @warning Surround calls to this function with `cli_[un]lock_commands`
+ */
+CliCommandTree_t* cli_get_commands(Cli* cli);
 
 #ifdef __cplusplus
 }

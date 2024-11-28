@@ -19,7 +19,7 @@ typedef struct {
     char c;
 } SubGhzChatEvent;
 
-SubGhzChatWorker* subghz_chat_worker_alloc(Cli* cli);
+SubGhzChatWorker* subghz_chat_worker_alloc(FuriPipeSide* pipe);
 void subghz_chat_worker_free(SubGhzChatWorker* instance);
 bool subghz_chat_worker_start(
     SubGhzChatWorker* instance,

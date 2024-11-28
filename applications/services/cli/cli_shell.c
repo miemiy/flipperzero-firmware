@@ -1,8 +1,10 @@
 #include "cli_shell.h"
 #include "cli_ansi.h"
+#include "cli_i.h"
 #include <stdio.h>
 #include <furi_hal_version.h>
 #include <m-array.h>
+#include <loader/loader.h>
 
 #define TAG "CliShell"
 
@@ -12,6 +14,8 @@ ARRAY_DEF(ShellHistory, FuriString*, FURI_STRING_OPLIST);
 #define M_OPL_ShellHistory_t() ARRAY_OPLIST(ShellHistory)
 
 typedef struct {
+    Cli* cli;
+
     FuriEventLoop* event_loop;
     FuriPipeSide* pipe;
     CliAnsiParser* ansi_parser;
@@ -20,6 +24,72 @@ typedef struct {
     size_t line_position;
     ShellHistory_t history;
 } CliShell;
+
+typedef struct {
+    CliCommand* command;
+    FuriPipeSide* pipe;
+    FuriString* args;
+} CliCommandThreadData;
+
+static int32_t cli_command_thread(void* context) {
+    CliCommandThreadData* thread_data = context;
+    if(!(thread_data->command->flags & CliCommandFlagDontAttachStdio))
+        furi_pipe_install_as_stdio(thread_data->pipe);
+
+    thread_data->command->callback(
+        thread_data->pipe, thread_data->args, thread_data->command->context);
+
+    fflush(stdout);
+    return 0;
+}
+
+static void cli_shell_execute_command(CliShell* cli_shell, FuriString* command) {
+    // split command into command and args
+    size_t space = furi_string_search_char(command, ' ');
+    if(space == FURI_STRING_FAILURE) space = furi_string_size(command);
+    FuriString* command_name = furi_string_alloc_set(command);
+    furi_string_left(command_name, space);
+    FuriString* args = furi_string_alloc_set(command);
+    furi_string_right(args, space + 1); // FIXME:
+
+    // find handler
+    CliCommand command_data;
+    if(!cli_get_command(cli_shell->cli, command_name, &command_data)) {
+        printf(
+            ANSI_FG_RED "could not find command `%s`" ANSI_RESET,
+            furi_string_get_cstr(command_name));
+        return;
+    }
+
+    // lock loader
+    Loader* loader = furi_record_open(RECORD_LOADER);
+    if(command_data.flags & CliCommandFlagParallelUnsafe) {
+        bool success = loader_lock(loader);
+        if(!success) {
+            printf(ANSI_FG_RED
+                   "this command cannot be run while an application is open" ANSI_RESET);
+            return;
+        }
+    }
+
+    // run command in separate thread
+    CliCommandThreadData thread_data = {
+        .command = &command_data,
+        .pipe = cli_shell->pipe,
+        .args = args,
+    };
+    FuriThread* thread = furi_thread_alloc_ex(
+        furi_string_get_cstr(command_name), CLI_SHELL_STACK_SIZE, cli_command_thread, &thread_data);
+    furi_thread_start(thread);
+    furi_thread_join(thread);
+    furi_thread_free(thread);
+
+    furi_string_free(command_name);
+    furi_string_free(args);
+
+    // unlock loader
+    if(command_data.flags & CliCommandFlagParallelUnsafe) loader_unlock(loader);
+}
 
 static void cli_shell_tick(void* context) {
     CliShell* cli_shell = context;
@@ -43,14 +113,6 @@ static void cli_shell_prompt(CliShell* cli_shell) {
     cli_shell_format_prompt(cli_shell, buffer, sizeof(buffer));
     printf("\r\n%s", buffer);
     fflush(stdout);
-}
-
-static void cli_shell_dump_history(CliShell* cli_shell) {
-    FURI_LOG_T(TAG, "history depth=%d, entries:", ShellHistory_size(cli_shell->history));
-    for
-        M_EACH(entry, cli_shell->history, ShellHistory_t) {
-            FURI_LOG_T(TAG, "  \"%s\"", furi_string_get_cstr(*entry));
-        }
 }
 
 /**
@@ -160,23 +222,26 @@ static void cli_shell_data_available(FuriEventLoopObject* object, void* context)
             strlen(prompt) + cli_shell->line_position + 1 /* 1-based column indexing */);
         fflush(stdout);
 
-    } else if(key_combo.modifiers == 0 && key_combo.key == CliKeyLF) {
+    } else if(key_combo.modifiers == 0 && key_combo.key == CliKeyCR) {
         // get command and update history
-        cli_shell_dump_history(cli_shell);
         FuriString* command = furi_string_alloc();
         ShellHistory_pop_at(&command, cli_shell->history, cli_shell->history_position);
+        furi_string_trim(command);
         if(cli_shell->history_position > 0) ShellHistory_pop_at(NULL, cli_shell->history, 0);
         if(!furi_string_empty(command)) ShellHistory_push_at(cli_shell->history, 0, command);
-        ShellHistory_push_at(cli_shell->history, 0, furi_string_alloc());
+        FuriString* new_command = furi_string_alloc();
+        ShellHistory_push_at(cli_shell->history, 0, new_command);
+        furi_string_free(new_command);
         if(ShellHistory_size(cli_shell->history) > HISTORY_DEPTH) {
             ShellHistory_pop_back(NULL, cli_shell->history);
         }
-        cli_shell_dump_history(cli_shell);
 
         // execute command
         cli_shell->line_position = 0;
         cli_shell->history_position = 0;
-        printf("\r\ncommand input: \"%s\"", furi_string_get_cstr(command));
+        printf("\r\n");
+        cli_shell_execute_command(cli_shell, command);
+        furi_string_free(command);
         cli_shell_prompt(cli_shell);
 
     } else if(key_combo.modifiers == 0 && (key_combo.key == CliKeyUp || key_combo.key == CliKeyDown)) {
@@ -287,11 +352,12 @@ static void cli_shell_data_available(FuriEventLoopObject* object, void* context)
         FuriString* line = *ShellHistory_front(cli_shell->history);
         if(cli_shell->line_position == furi_string_size(line)) {
             furi_string_push_back(line, key_combo.key);
+            printf("%c", key_combo.key);
         } else {
             const char in_str[2] = {key_combo.key, 0};
             furi_string_replace_at(line, cli_shell->line_position, 0, in_str);
+            printf(ANSI_INSERT_MODE_ENABLE "%c" ANSI_INSERT_MODE_DISABLE, key_combo.key);
         }
-        printf(ANSI_INSERT_MODE_ENABLE "%c" ANSI_INSERT_MODE_DISABLE, key_combo.key);
         fflush(stdout);
         cli_shell->line_position++;
     }
@@ -299,6 +365,7 @@ static void cli_shell_data_available(FuriEventLoopObject* object, void* context)
 
 static CliShell* cli_shell_alloc(FuriPipeSide* pipe) {
     CliShell* cli_shell = malloc(sizeof(CliShell));
+    cli_shell->cli = furi_record_open(RECORD_CLI);
     cli_shell->ansi_parser = cli_ansi_parser_alloc();
     cli_shell->event_loop = furi_event_loop_alloc();
     ShellHistory_init(cli_shell->history);
@@ -324,6 +391,7 @@ static void cli_shell_free(CliShell* cli_shell) {
     furi_pipe_free(cli_shell->pipe);
     ShellHistory_clear(cli_shell->history);
     cli_ansi_parser_free(cli_shell->ansi_parser);
+    furi_record_close(RECORD_CLI);
     free(cli_shell);
 }
 
@@ -375,8 +443,9 @@ static int32_t cli_shell_thread(void* context) {
     return 0;
 }
 
-void cli_shell_start(FuriPipeSide* pipe) {
+FuriThread* cli_shell_start(FuriPipeSide* pipe) {
     FuriThread* thread =
         furi_thread_alloc_ex("CliShell", CLI_SHELL_STACK_SIZE, cli_shell_thread, pipe);
     furi_thread_start(thread);
+    return thread;
 }

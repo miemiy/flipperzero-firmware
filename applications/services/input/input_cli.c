@@ -19,7 +19,7 @@ static void input_cli_dump_events_callback(const void* value, void* ctx) {
     furi_message_queue_put(input_queue, value, FuriWaitForever);
 }
 
-static void input_cli_dump(Cli* cli, FuriString* args, FuriPubSub* event_pubsub) {
+static void input_cli_dump(FuriPipeSide* pipe, FuriString* args, FuriPubSub* event_pubsub) {
     UNUSED(args);
     FuriMessageQueue* input_queue = furi_message_queue_alloc(8, sizeof(InputEvent));
     FuriPubSubSubscription* input_subscription =
@@ -27,7 +27,7 @@ static void input_cli_dump(Cli* cli, FuriString* args, FuriPubSub* event_pubsub)
 
     InputEvent input_event;
     printf("Press CTRL+C to stop\r\n");
-    while(!cli_cmd_interrupt_received(cli)) {
+    while(!cli_app_should_stop(pipe)) {
         if(furi_message_queue_get(input_queue, &input_event, 100) == FuriStatusOk) {
             printf(
                 "key: %s type: %s\r\n",
@@ -47,8 +47,8 @@ static void input_cli_send_print_usage(void) {
     printf("\t\t <type>\t - one of 'press', 'release', 'short', 'long'\r\n");
 }
 
-static void input_cli_send(Cli* cli, FuriString* args, FuriPubSub* event_pubsub) {
-    UNUSED(cli);
+static void input_cli_send(FuriPipeSide* pipe, FuriString* args, FuriPubSub* event_pubsub) {
+    UNUSED(pipe);
     InputEvent event;
     FuriString* key_str;
     key_str = furi_string_alloc();
@@ -97,8 +97,7 @@ static void input_cli_send(Cli* cli, FuriString* args, FuriPubSub* event_pubsub)
     furi_string_free(key_str);
 }
 
-void input_cli(Cli* cli, FuriString* args, void* context) {
-    furi_assert(cli);
+void input_cli(FuriPipeSide* pipe, FuriString* args, void* context) {
     furi_assert(context);
     FuriPubSub* event_pubsub = context;
     FuriString* cmd;
@@ -110,11 +109,11 @@ void input_cli(Cli* cli, FuriString* args, void* context) {
             break;
         }
         if(furi_string_cmp_str(cmd, "dump") == 0) {
-            input_cli_dump(cli, args, event_pubsub);
+            input_cli_dump(pipe, args, event_pubsub);
             break;
         }
         if(furi_string_cmp_str(cmd, "send") == 0) {
-            input_cli_send(cli, args, event_pubsub);
+            input_cli_send(pipe, args, event_pubsub);
             break;
         }
 
