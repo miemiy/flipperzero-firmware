@@ -145,12 +145,7 @@ bool cli_app_should_stop(FuriPipeSide* side) {
     if(furi_pipe_state(side) == FuriPipeStateBroken) return true;
     if(!furi_pipe_bytes_available(side)) return false;
     char c = getchar();
-    if(c == CliKeyETX) {
-        return true;
-    } else {
-        ungetc(c, stdin);
-        return false;
-    }
+    return c == CliKeyETX;
 }
 
 void cli_print_usage(const char* cmd, const char* usage, const char* arg) {
