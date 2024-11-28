@@ -314,7 +314,7 @@ static void cli_shell_data_available(FuriEventLoopObject* object, void* context)
             ANSI_CURSOR_LEFT_BY("1") "%s" ANSI_ERASE_LINE(ANSI_ERASE_FROM_CURSOR_TO_END),
             furi_string_get_cstr(line) + cli_shell->line_position);
         size_t left_by = furi_string_size(line) - cli_shell->line_position;
-        if(left_by) // apparently LEFT_BY("0") shift left by one ._ .
+        if(left_by) // apparently LEFT_BY("0") still shifts left by one ._ .
             printf(ANSI_CURSOR_LEFT_BY("%d"), left_by);
         fflush(stdout);
 
@@ -369,7 +369,9 @@ static CliShell* cli_shell_alloc(FuriPipeSide* pipe) {
     cli_shell->ansi_parser = cli_ansi_parser_alloc();
     cli_shell->event_loop = furi_event_loop_alloc();
     ShellHistory_init(cli_shell->history);
-    ShellHistory_push_at(cli_shell->history, 0, furi_string_alloc());
+    FuriString* new_command = furi_string_alloc();
+    ShellHistory_push_at(cli_shell->history, 0, new_command);
+    furi_string_free(new_command);
 
     cli_shell->pipe = pipe;
     furi_pipe_install_as_stdio(cli_shell->pipe);
@@ -387,9 +389,9 @@ static CliShell* cli_shell_alloc(FuriPipeSide* pipe) {
 
 static void cli_shell_free(CliShell* cli_shell) {
     furi_event_loop_unsubscribe(cli_shell->event_loop, cli_shell->pipe);
-    furi_event_loop_free(cli_shell->event_loop);
     furi_pipe_free(cli_shell->pipe);
     ShellHistory_clear(cli_shell->history);
+    furi_event_loop_free(cli_shell->event_loop);
     cli_ansi_parser_free(cli_shell->ansi_parser);
     furi_record_close(RECORD_CLI);
     free(cli_shell);

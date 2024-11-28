@@ -566,7 +566,13 @@ static void furi_event_loop_item_free(FuriEventLoopItem* instance) {
 static void furi_event_loop_item_free_later(FuriEventLoopItem* instance) {
     furi_assert(instance);
     furi_assert(!furi_event_loop_item_is_waiting(instance));
+    FuriEventLoop* owner = instance->owner;
+
+    // by erasing the owner and forcefully adding the item into the waiting list,
+    // we're asking the event loop to free us
     instance->owner = NULL;
+    WaitingList_push_back(owner->waiting_list, instance);
+    furi_event_loop_notify(owner, FuriEventLoopFlagEvent);
 }
 
 static void furi_event_loop_item_set_callback(

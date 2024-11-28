@@ -29,10 +29,10 @@ typedef struct {
 } CliVcpMessage;
 
 typedef enum {
-    CliVcpInternalMessageConnected = 1U << 0,
-    CliVcpInternalMessageDisconnected = 1U << 1,
-    CliVcpInternalMessageTxDone = 1U << 2,
-    CliVcpInternalMessageRx = 1U << 3,
+    CliVcpInternalMessageConnected,
+    CliVcpInternalMessageDisconnected,
+    CliVcpInternalMessageTxDone,
+    CliVcpInternalMessageRx,
 } CliVcpInternalMessage;
 
 struct CliVcp {
