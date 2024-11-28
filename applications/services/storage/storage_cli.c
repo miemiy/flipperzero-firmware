@@ -316,7 +316,7 @@ static void storage_cli_write_chunk(FuriPipeSide* pipe, FuriString* path, FuriSt
     } else {
         if(storage_file_open(file, furi_string_get_cstr(path), FSAM_WRITE, FSOM_OPEN_APPEND)) {
             printf("Ready\r\n");
-            char buffer[32];
+            char buffer[256];
 
             while(need_to_read) {
                 size_t read_this_time = furi_pipe_receive(
