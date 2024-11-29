@@ -15,59 +15,6 @@ Cli* cli_alloc(void) {
     return cli;
 }
 
-// static void cli_handle_autocomplete(Cli* cli) {
-//     cli_normalize_line(cli);
-
-//     if(furi_string_size(cli->line) == 0) {
-//         return;
-//     }
-
-//     cli_nl(cli);
-
-//     // Prepare common base for autocomplete
-//     FuriString* common;
-//     common = furi_string_alloc();
-//     // Iterate throw commands
-//     for
-//         M_EACH(cli_command, cli->commands, CliCommandTree_t) {
-//             // Process only if starts with line buffer
-//             if(furi_string_start_with(*cli_command->key_ptr, cli->line)) {
-//                 // Show autocomplete option
-//                 printf("%s\r\n", furi_string_get_cstr(*cli_command->key_ptr));
-//                 // Process common base for autocomplete
-//                 if(furi_string_size(common) > 0) {
-//                     // Choose shortest string
-//                     const size_t key_size = furi_string_size(*cli_command->key_ptr);
-//                     const size_t common_size = furi_string_size(common);
-//                     const size_t min_size = key_size > common_size ? common_size : key_size;
-//                     size_t i = 0;
-//                     while(i < min_size) {
-//                         // Stop when do not match
-//                         if(furi_string_get_char(*cli_command->key_ptr, i) !=
-//                            furi_string_get_char(common, i)) {
-//                             break;
-//                         }
-//                         i++;
-//                     }
-//                     // Cut right part if any
-//                     furi_string_left(common, i);
-//                 } else {
-//                     // Start with something
-//                     furi_string_set(common, *cli_command->key_ptr);
-//                 }
-//             }
-//         }
-//     // Replace line buffer if autocomplete better
-//     if(furi_string_size(common) > furi_string_size(cli->line)) {
-//         furi_string_set(cli->line, common);
-//         cli->cursor_position = furi_string_size(cli->line);
-//     }
-//     // Cleanup
-//     furi_string_free(common);
-//     // Show prompt
-//     cli_prompt(cli);
-// }
-
 void cli_add_command(
     Cli* cli,
     const char* name,
