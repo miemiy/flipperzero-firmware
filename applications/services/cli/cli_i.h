@@ -27,7 +27,7 @@ BPTREE_DEF2(
     FuriString*,
     FURI_STRING_OPLIST,
     CliCommand,
-    M_POD_OPLIST);
+    M_POD_OPLIST); // -V1103
 
 #define M_OPL_CliCommandTree_t() BPTREE_OPLIST(CliCommandTree, M_POD_OPLIST)
 

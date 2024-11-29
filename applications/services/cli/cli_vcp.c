@@ -66,7 +66,7 @@ static void cli_vcp_maybe_send_data(CliVcp* cli_vcp) {
     uint8_t buf[USB_CDC_PKT_LEN];
     size_t length = furi_pipe_receive(cli_vcp->own_pipe, buf, sizeof(buf), 0);
     if(length > 0 || cli_vcp->previous_tx_length == USB_CDC_PKT_LEN) {
-        VCP_LOG_T(TAG, "cdc_send length=%u", length);
+        VCP_LOG_T(TAG, "cdc_send length=%zu", length);
         cli_vcp->is_currently_transmitting = true;
         furi_hal_cdc_send(VCP_IF_NUM, buf, length);
     }
@@ -84,7 +84,7 @@ static void cli_vcp_maybe_receive_data(CliVcp* cli_vcp) {
 
     uint8_t buf[USB_CDC_PKT_LEN];
     size_t length = furi_hal_cdc_receive(VCP_IF_NUM, buf, sizeof(buf));
-    VCP_LOG_T(TAG, "cdc_receive length=%u", length);
+    VCP_LOG_T(TAG, "cdc_receive length=%zu", length);
     furi_check(furi_pipe_send(cli_vcp->own_pipe, buf, length, 0) == length);
 }
 

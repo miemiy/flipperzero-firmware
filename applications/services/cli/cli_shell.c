@@ -10,7 +10,7 @@
 
 #define HISTORY_DEPTH 10
 
-ARRAY_DEF(ShellHistory, FuriString*, FURI_STRING_OPLIST);
+ARRAY_DEF(ShellHistory, FuriString*, FURI_STRING_OPLIST); // -V524
 #define M_OPL_ShellHistory_t() ARRAY_OPLIST(ShellHistory)
 
 typedef struct {
@@ -198,7 +198,8 @@ static void cli_shell_data_available(FuriEventLoopObject* object, void* context)
     if(!parse_result.is_done) return;
     CliKeyCombo key_combo = parse_result.result;
     if(key_combo.key == CliKeyUnrecognized) return;
-    FURI_LOG_T(TAG, "mod=%d, key=%d='%c'", key_combo.modifiers, key_combo.key, key_combo.key);
+    FURI_LOG_T(
+        TAG, "mod=%d, key=%d='%c'", key_combo.modifiers, key_combo.key, (char)key_combo.key);
 
     // do things the user requests
     if(key_combo.modifiers == 0 && key_combo.key == CliKeyETX) { // usually Ctrl+C
@@ -216,7 +217,7 @@ static void cli_shell_data_available(FuriEventLoopObject* object, void* context)
         cli_shell_format_prompt(cli_shell, prompt, sizeof(prompt));
         printf(
             ANSI_ERASE_DISPLAY(ANSI_ERASE_ENTIRE) ANSI_ERASE_SCROLLBACK_BUFFER ANSI_CURSOR_POS(
-                "1", "1") "%s%s" ANSI_CURSOR_HOR_POS("%d"),
+                "1", "1") "%s%s" ANSI_CURSOR_HOR_POS("%zu"),
             prompt,
             furi_string_get_cstr(command),
             strlen(prompt) + cli_shell->line_position + 1 /* 1-based column indexing */);
@@ -291,7 +292,7 @@ static void cli_shell_data_available(FuriEventLoopObject* object, void* context)
         FuriString* line = *ShellHistory_cget(cli_shell->history, cli_shell->history_position);
         cli_shell->line_position = furi_string_size(line);
         printf(
-            ANSI_CURSOR_HOR_POS("%d"),
+            ANSI_CURSOR_HOR_POS("%zu"),
             cli_shell_prompt_length(cli_shell) + cli_shell->line_position + 1);
         fflush(stdout);
 
@@ -315,7 +316,7 @@ static void cli_shell_data_available(FuriEventLoopObject* object, void* context)
             furi_string_get_cstr(line) + cli_shell->line_position);
         size_t left_by = furi_string_size(line) - cli_shell->line_position;
         if(left_by) // apparently LEFT_BY("0") still shifts left by one ._ .
-            printf(ANSI_CURSOR_LEFT_BY("%d"), left_by);
+            printf(ANSI_CURSOR_LEFT_BY("%zu"), left_by);
         fflush(stdout);
 
     } else if(
@@ -327,7 +328,7 @@ static void cli_shell_data_available(FuriEventLoopObject* object, void* context)
                                                                      CliSkipDirectionRight;
         cli_shell->line_position = cli_skip_run(line, cli_shell->line_position, direction);
         printf(
-            ANSI_CURSOR_HOR_POS("%d"),
+            ANSI_CURSOR_HOR_POS("%zu"),
             cli_shell_prompt_length(cli_shell) + cli_shell->line_position + 1);
         fflush(stdout);
 

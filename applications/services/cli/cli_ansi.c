@@ -51,7 +51,6 @@ CliAnsiParserResult cli_ansi_parser_feed(CliAnsiParser* parser, char c) {
     case CliAnsiParserStateInitial:
         // <key> -> <key>
         if(c != CliKeyEsc) {
-            parser->state = CliAnsiParserStateInitial;
             return (CliAnsiParserResult){
                 .is_done = true,
                 .result = (CliKeyCombo){
