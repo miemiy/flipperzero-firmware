@@ -40,13 +40,6 @@ static void furi_event_loop_process_pending_callbacks(FuriEventLoop* instance) {
     }
 }
 
-static inline void furi_event_loop_process_custom_events(FuriEventLoop* instance) {
-    if(instance->custom.callback) {
-        uint32_t events = furi_thread_flags_wait(0x00FFFFFFUL, FuriFlagWaitAny, 0);
-        instance->custom.callback(events, instance->custom.context);
-    }
-}
-
 static bool furi_event_loop_signal_callback(uint32_t signal, void* arg, void* context) {
     furi_assert(context);
     FuriEventLoop* instance = context;
@@ -249,12 +242,10 @@ void furi_event_loop_run(FuriEventLoop* instance) {
             } else if(flags & FuriEventLoopFlagPending) {
                 furi_event_loop_process_pending_callbacks(instance);
 
-            } else if(flags & FuriEventLoopFlagCustom) {
-                furi_event_loop_process_custom_events(instance);
-
             } else {
                 furi_crash();
             }
+
         } else if(!furi_event_loop_process_expired_timers(instance)) {
             furi_event_loop_process_tick(instance);
         }
@@ -288,33 +279,6 @@ static void furi_event_loop_notify(FuriEventLoop* instance, FuriEventLoopFlag fl
 void furi_event_loop_stop(FuriEventLoop* instance) {
     furi_check(instance);
     furi_event_loop_notify(instance, FuriEventLoopFlagStop);
-}
-
-/*
- * Public direct thread notification API
- */
-
-void furi_event_loop_set_custom_event_callback(
-    FuriEventLoop* instance,
-    FuriEventLoopCustomCallback callback,
-    void* context) {
-    furi_check(instance);
-    furi_check(instance->thread_id == furi_thread_get_current_id());
-    furi_check(callback);
-
-    instance->custom.callback = callback;
-    instance->custom.context = context;
-
-    if(furi_thread_flags_get()) {
-        furi_event_loop_notify(instance, FuriEventLoopFlagCustom);
-    }
-}
-
-void furi_event_loop_set_custom_event(FuriEventLoop* instance, uint32_t events) {
-    furi_check(instance);
-
-    furi_thread_flags_set(instance->thread_id, events);
-    furi_event_loop_notify(instance, FuriEventLoopFlagCustom);
 }
 
 /*
@@ -566,13 +530,7 @@ static void furi_event_loop_item_free(FuriEventLoopItem* instance) {
 static void furi_event_loop_item_free_later(FuriEventLoopItem* instance) {
     furi_assert(instance);
     furi_assert(!furi_event_loop_item_is_waiting(instance));
-    FuriEventLoop* owner = instance->owner;
-
-    // by erasing the owner and forcefully adding the item into the waiting list,
-    // we're asking the event loop to free us
     instance->owner = NULL;
-    WaitingList_push_back(owner->waiting_list, instance);
-    furi_event_loop_notify(owner, FuriEventLoopFlagEvent);
 }
 
 static void furi_event_loop_item_set_callback(

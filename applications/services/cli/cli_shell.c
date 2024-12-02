@@ -79,7 +79,10 @@ static void cli_shell_execute_command(CliShell* cli_shell, FuriString* command) 
         .args = args,
     };
     FuriThread* thread = furi_thread_alloc_ex(
-        furi_string_get_cstr(command_name), CLI_SHELL_STACK_SIZE, cli_command_thread, &thread_data);
+        furi_string_get_cstr(command_name),
+        CLI_COMMAND_STACK_SIZE,
+        cli_command_thread,
+        &thread_data);
     furi_thread_start(thread);
     furi_thread_join(thread);
     furi_thread_free(thread);
