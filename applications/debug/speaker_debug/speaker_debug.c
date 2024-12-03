@@ -37,8 +37,8 @@ static void speaker_app_free(SpeakerDebugApp* app) {
     free(app);
 }
 
-static void speaker_app_cli(Cli* cli, FuriString* args, void* context) {
-    UNUSED(cli);
+static void speaker_app_cli(FuriPipeSide* pipe, FuriString* args, void* context) {
+    UNUSED(pipe);
 
     SpeakerDebugApp* app = (SpeakerDebugApp*)context;
     SpeakerDebugAppMessage message;
@@ -95,7 +95,7 @@ static void speaker_app_run(SpeakerDebugApp* app, const char* arg) {
         return;
     }
 
-    cli_add_command(app->cli, CLI_COMMAND, CliCommandFlagParallelSafe, speaker_app_cli, app);
+    cli_add_command(app->cli, CLI_COMMAND, CliCommandFlagDefault, speaker_app_cli, app);
 
     SpeakerDebugAppMessage message;
     FuriStatus status;

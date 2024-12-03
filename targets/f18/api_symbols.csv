@@ -774,19 +774,14 @@ Function,-,cfree,void,void*
 Function,-,clearerr,void,FILE*
 Function,-,clearerr_unlocked,void,FILE*
 Function,+,cli_add_command,void,"Cli*, const char*, CliCommandFlag, CliCallback, void*"
-Function,+,cli_cmd_interrupt_received,_Bool,Cli*
+Function,-,cli_ansi_parser_alloc,CliAnsiParser*,
+Function,-,cli_ansi_parser_feed,CliAnsiParserResult,"CliAnsiParser*, char"
+Function,-,cli_ansi_parser_free,void,CliAnsiParser*
+Function,+,cli_app_should_stop,_Bool,FuriPipeSide*
 Function,+,cli_delete_command,void,"Cli*, const char*"
-Function,+,cli_getc,char,Cli*
-Function,+,cli_is_connected,_Bool,Cli*
-Function,+,cli_nl,void,Cli*
 Function,+,cli_print_usage,void,"const char*, const char*, const char*"
-Function,+,cli_read,size_t,"Cli*, uint8_t*, size_t"
-Function,+,cli_read_timeout,size_t,"Cli*, uint8_t*, size_t, uint32_t"
-Function,+,cli_session_close,void,Cli*
-Function,+,cli_session_open,void,"Cli*, void*"
 Function,+,cli_vcp_disable,void,CliVcp*
 Function,+,cli_vcp_enable,void,CliVcp*
-Function,+,cli_write,void,"Cli*, const uint8_t*, size_t"
 Function,+,composite_api_resolver_add,void,"CompositeApiResolver*, const ElfApiInterface*"
 Function,+,composite_api_resolver_alloc,CompositeApiResolver*,
 Function,+,composite_api_resolver_free,void,CompositeApiResolver*
@@ -1673,8 +1668,8 @@ Function,+,furi_thread_get_return_code,int32_t,FuriThread*
 Function,+,furi_thread_get_signal_callback,FuriThreadSignalCallback,const FuriThread*
 Function,+,furi_thread_get_stack_space,uint32_t,FuriThreadId
 Function,+,furi_thread_get_state,FuriThreadState,FuriThread*
-Function,+,furi_thread_get_stdin_callback,FuriThreadStdinReadCallback,
-Function,+,furi_thread_get_stdout_callback,FuriThreadStdoutWriteCallback,
+Function,+,furi_thread_get_stdin_callback,void,"FuriThreadStdinReadCallback*, void**"
+Function,+,furi_thread_get_stdout_callback,void,"FuriThreadStdoutWriteCallback*, void**"
 Function,+,furi_thread_is_suspended,_Bool,FuriThreadId
 Function,+,furi_thread_join,_Bool,FuriThread*
 Function,+,furi_thread_list_alloc,FuriThreadList*,
