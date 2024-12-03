@@ -3,7 +3,7 @@ App(
     apptype=FlipperAppType.STARTUP,
     entry_point="cli_on_system_start",
     cdefines=["SRV_CLI"],
-    sources=["cli.c"],
+    sources=["cli.c", "cli_shell.c", "cli_commands.c", "cli_command_gpio.c", "cli_ansi.c"],
     sdk_headers=["cli.h"],
     order=0,
 )
@@ -16,5 +16,5 @@ App(
     stack_size=768,
     order=40,
     sdk_headers=["cli_vcp.h"],
-    sources=["cli.c", "cli_vcp.c", "cli_shell.c", "cli_commands.c", "cli_ansi.c"],
+    sources=["cli_vcp.c"],
 )

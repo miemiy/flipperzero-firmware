@@ -529,6 +529,6 @@ void cli_commands_init(Cli* cli) {
 
     cli_add_command(cli, "vibro", CliCommandFlagParallelUnsafe, cli_command_vibro, NULL);
     cli_add_command(cli, "led", CliCommandFlagParallelUnsafe, cli_command_led, NULL);
-    // cli_add_command(cli, "gpio", CliCommandFlagParallelUnsafe, cli_command_gpio, NULL);
+    cli_add_command(cli, "gpio", CliCommandFlagParallelUnsafe, cli_command_gpio, NULL);
     cli_add_command(cli, "i2c", CliCommandFlagParallelUnsafe, cli_command_i2c, NULL);
 }
